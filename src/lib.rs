@@ -21,7 +21,7 @@ use implot_sys as sys;
 // TODO(4bb4) facade-wrap these?
 pub use self::{context::*, plot::*, plot_elements::*};
 use std::os::raw::c_char;
-pub use sys::{ImPlotLimits, ImPlotPoint, ImPlotRange, ImVec2, ImVec4};
+pub use sys::{ImPlotRect, ImPlotPoint, ImPlotRange, ImVec2, ImVec4};
 
 mod context;
 mod plot;
@@ -45,9 +45,20 @@ const NUMBER_OF_Y_AXES: usize = 3;
 #[derive(Clone)]
 #[repr(u32)]
 pub enum YAxisChoice {
-    First = sys::ImPlotYAxis__ImPlotYAxis_1,
-    Second = sys::ImPlotYAxis__ImPlotYAxis_2,
-    Third = sys::ImPlotYAxis__ImPlotYAxis_3,
+    First = sys::ImAxis__ImAxis_Y1 as u32,
+    Second = sys::ImAxis__ImAxis_Y2 as u32,
+    Third = sys::ImAxis__ImAxis_Y3 as u32,
+}
+
+#[derive(Debug, Clone)]
+#[repr(u32)]
+pub enum Axis {
+    X1 = sys::ImAxis__ImAxis_X1 as u32,
+    X2 = sys::ImAxis__ImAxis_X2 as u32,
+    X3 = sys::ImAxis__ImAxis_X3 as u32,
+    Y1 = sys::ImAxis__ImAxis_Y1 as u32,
+    Y2 = sys::ImAxis__ImAxis_Y2 as u32,
+    Y3 = sys::ImAxis__ImAxis_Y3 as u32,
 }
 
 /// Turn an Option<YAxisChoice> into an i32. Picks IMPLOT_AUTO for None.
@@ -104,53 +115,47 @@ pub enum Marker {
 #[derive(Copy, Clone, Debug)]
 pub enum PlotColorElement {
     /// Plot line/outline color (defaults to next unused color in current colormap)
-    Line = sys::ImPlotCol__ImPlotCol_Line,
+    Line = sys::ImPlotCol__ImPlotCol_Line as u32,
     /// Plot fill color for bars (defaults to the current line color)
-    Fill = sys::ImPlotCol__ImPlotCol_Fill,
+    Fill = sys::ImPlotCol__ImPlotCol_Fill as u32,
     /// Marker outline color (defaults to the current line color)
-    MarkerOutline = sys::ImPlotCol__ImPlotCol_MarkerOutline,
+    MarkerOutline = sys::ImPlotCol__ImPlotCol_MarkerOutline as u32,
     /// Marker fill color (defaults to the current line color)
-    MarkerFill = sys::ImPlotCol__ImPlotCol_MarkerFill,
+    MarkerFill = sys::ImPlotCol__ImPlotCol_MarkerFill as u32,
     /// Error bar color (defaults to text color)
-    ErrorBar = sys::ImPlotCol__ImPlotCol_ErrorBar,
+    ErrorBar = sys::ImPlotCol__ImPlotCol_ErrorBar as u32,
     /// Plot frame background color (defaults to FRAME_BG)
-    FrameBg = sys::ImPlotCol__ImPlotCol_FrameBg,
+    FrameBg = sys::ImPlotCol__ImPlotCol_FrameBg as u32,
     /// Plot area background color (defaults to WINDOW_BG)
-    PlotBg = sys::ImPlotCol__ImPlotCol_PlotBg,
+    PlotBg = sys::ImPlotCol__ImPlotCol_PlotBg as u32,
     /// Plot area border color (defaults to text color)
-    PlotBorder = sys::ImPlotCol__ImPlotCol_PlotBorder,
+    PlotBorder = sys::ImPlotCol__ImPlotCol_PlotBorder as u32,
     /// Legend background color (defaults to ImGuiCol_PopupBg)
-    LegendBackground = sys::ImPlotCol__ImPlotCol_LegendBg,
+    LegendBackground = sys::ImPlotCol__ImPlotCol_LegendBg as u32,
     /// Legend border color (defaults to ImPlotCol_PlotBorder)
-    LegendBorder = sys::ImPlotCol__ImPlotCol_LegendBorder,
+    LegendBorder = sys::ImPlotCol__ImPlotCol_LegendBorder as u32,
     /// Legend text color (defaults to ImPlotCol_InlayText)
-    LegendText = sys::ImPlotCol__ImPlotCol_LegendText,
+    LegendText = sys::ImPlotCol__ImPlotCol_LegendText as u32,
     /// Plot title text color (defaults to ImGuiCol_Text)
-    TitleText = sys::ImPlotCol__ImPlotCol_TitleText,
+    TitleText = sys::ImPlotCol__ImPlotCol_TitleText as u32,
     /// Color of text appearing inside of plots (defaults to ImGuiCol_Text)
-    InlayText = sys::ImPlotCol__ImPlotCol_InlayText,
-    /// X-axis label and tick lables color (defaults to ImGuiCol_Text)
-    XAxis = sys::ImPlotCol__ImPlotCol_XAxis,
+    InlayText = sys::ImPlotCol__ImPlotCol_InlayText as u32,
+    /// axis label and tick lables color (defaults to ImGuiCol_Text)
+    AxisText = sys::ImPlotCol__ImPlotCol_AxisText as u32,
     /// X-axis grid color (defaults to 25% ImPlotCol_XAxis)
-    XAxisGrid = sys::ImPlotCol__ImPlotCol_XAxisGrid,
-    /// Y-axis label and tick labels color (defaults to ImGuiCol_Text)
-    YAxis = sys::ImPlotCol__ImPlotCol_YAxis,
-    /// Y-axis grid color (defaults to 25% ImPlotCol_YAxis)
-    YAxisGrid = sys::ImPlotCol__ImPlotCol_YAxisGrid,
-    /// 2nd y-axis label and tick labels color (defaults to ImGuiCol_Text)
-    YAxis2 = sys::ImPlotCol__ImPlotCol_YAxis2,
-    /// 2nd y-axis grid/label color (defaults to 25% ImPlotCol_YAxis2)
-    YAxisGrid2 = sys::ImPlotCol__ImPlotCol_YAxisGrid2,
-    /// 3rd y-axis label and tick labels color (defaults to ImGuiCol_Text)
-    YAxis3 = sys::ImPlotCol__ImPlotCol_YAxis3,
-    /// 3rd y-axis grid/label color (defaults to 25% ImPlotCol_YAxis3)
-    YAxisGrid3 = sys::ImPlotCol__ImPlotCol_YAxisGrid3,
+    AxisGrid = sys::ImPlotCol__ImPlotCol_AxisGrid as u32,
+    /// axis tick color (defaults to AxisGrid)
+    AxisTick = sys::ImPlotCol__ImPlotCol_AxisTick as u32, 
+    /// background color of axis hover region (defaults to transparent)
+    AxisBg = sys::ImPlotCol__ImPlotCol_AxisBg as u32,
+    /// axis hover color (defaults to ImGuiCol_ButtonHovered)
+    AxisBgHovered = sys::ImPlotCol__ImPlotCol_AxisBgHovered as u32,
+    /// axis active color (defaults to ImGuiCol_ButtonActive)
+    AxisBgActive = sys::ImPlotCol__ImPlotCol_AxisBgActive as u32,
     /// Box-selection color (defaults to yellow)
-    Selection = sys::ImPlotCol__ImPlotCol_Selection,
+    Selection = sys::ImPlotCol__ImPlotCol_Selection as u32,
     /// crosshairs color (defaults to ImPlotCol_PlotBorder)
-    Crosshairs = sys::ImPlotCol__ImPlotCol_Crosshairs,
-    /// Box-query color (defaults to green)
-    Query = sys::ImPlotCol__ImPlotCol_Query,
+    Crosshairs = sys::ImPlotCol__ImPlotCol_Crosshairs as u32,
 }
 
 /// Colormap choice. Documentation copied from implot.h for convenience.
@@ -158,28 +163,38 @@ pub enum PlotColorElement {
 #[repr(u32)]
 #[derive(Copy, Clone, Debug)]
 pub enum Colormap {
-    /// ImPlot default colormap (n=10). Called "Standard" here because Default is reserved.
-    Standard = sys::ImPlotColormap__ImPlotColormap_Default,
     /// a.k.a. seaborn deep (n=10)
-    Deep = sys::ImPlotColormap__ImPlotColormap_Deep,
+    Deep = sys::ImPlotColormap__ImPlotColormap_Deep as u32,
     /// a.k.a. matplotlib "Set1" (n=9)
-    Dark = sys::ImPlotColormap__ImPlotColormap_Dark,
+    Dark = sys::ImPlotColormap__ImPlotColormap_Dark as u32,
     /// a.k.a. matplotlib "Pastel1" (n=9)
-    Pastel = sys::ImPlotColormap__ImPlotColormap_Pastel,
+    Pastel = sys::ImPlotColormap__ImPlotColormap_Pastel as u32,
     /// a.k.a. matplotlib "Paired" (n=12)
-    Paired = sys::ImPlotColormap__ImPlotColormap_Paired,
+    Paired = sys::ImPlotColormap__ImPlotColormap_Paired as u32,
     /// a.k.a. matplotlib "viridis" (n=11)
-    Viridis = sys::ImPlotColormap__ImPlotColormap_Viridis,
+    Viridis = sys::ImPlotColormap__ImPlotColormap_Viridis as u32,
     /// a.k.a. matplotlib "plasma" (n=11)
-    Plasma = sys::ImPlotColormap__ImPlotColormap_Plasma,
+    Plasma = sys::ImPlotColormap__ImPlotColormap_Plasma as u32,
     /// a.k.a. matplotlib/MATLAB "hot" (n=11)
-    Hot = sys::ImPlotColormap__ImPlotColormap_Hot,
+    Hot = sys::ImPlotColormap__ImPlotColormap_Hot as u32,
     /// a.k.a. matplotlib/MATLAB "cool" (n=11)
-    Cool = sys::ImPlotColormap__ImPlotColormap_Cool,
+    Cool = sys::ImPlotColormap__ImPlotColormap_Cool as u32,
     /// a.k.a. matplotlib/MATLAB "pink" (n=11)
-    Pink = sys::ImPlotColormap__ImPlotColormap_Pink,
+    Pink = sys::ImPlotColormap__ImPlotColormap_Pink as u32,
     /// a.k.a. MATLAB "jet" (n=11)
-    Jet = sys::ImPlotColormap__ImPlotColormap_Jet,
+    Jet = sys::ImPlotColormap__ImPlotColormap_Jet as u32,
+    /// a.k.a. matplotlib "twilight" (n=11)
+    Twilight = sys::ImPlotColormap__ImPlotColormap_Twilight as u32,
+    /// red/blue, Color Brewer
+    RdBu = sys::ImPlotColormap__ImPlotColormap_RdBu as u32,
+    /// brown/blue-green, Color Brewer
+    BrBG = sys::ImPlotColormap__ImPlotColormap_BrBG as u32,
+    /// pink/yellow-green, Color Brewer
+    PiYG = sys::ImPlotColormap__ImPlotColormap_PiYG as u32,
+    /// color spectrum, Color Brewer
+    Spectral = sys::ImPlotColormap__ImPlotColormap_Spectral as u32,
+    /// white/black
+    Greys = sys::ImPlotColormap__ImPlotColormap_Greys as u32,
 }
 
 /// Style variable choice, as in "which thing will be affected by a style setting".
@@ -188,60 +203,60 @@ pub enum Colormap {
 #[derive(Copy, Clone, Debug)]
 pub enum StyleVar {
     /// f32, line weight in pixels
-    LineWeight = sys::ImPlotStyleVar__ImPlotStyleVar_LineWeight,
+    LineWeight = sys::ImPlotStyleVar__ImPlotStyleVar_LineWeight as u32,
     /// u32,  marker specification
-    Marker = sys::ImPlotStyleVar__ImPlotStyleVar_Marker,
+    Marker = sys::ImPlotStyleVar__ImPlotStyleVar_Marker as u32,
     /// f32, marker size in pixels (roughly the marker's "radius")
-    MarkerSize = sys::ImPlotStyleVar__ImPlotStyleVar_MarkerSize,
+    MarkerSize = sys::ImPlotStyleVar__ImPlotStyleVar_MarkerSize as u32,
     /// f32, outline weight of markers in pixels
-    MarkerWeight = sys::ImPlotStyleVar__ImPlotStyleVar_MarkerWeight,
+    MarkerWeight = sys::ImPlotStyleVar__ImPlotStyleVar_MarkerWeight as u32,
     /// f32, alpha modifier applied to all plot item fills
-    FillAlpha = sys::ImPlotStyleVar__ImPlotStyleVar_FillAlpha,
+    FillAlpha = sys::ImPlotStyleVar__ImPlotStyleVar_FillAlpha as u32,
     /// f32, error bar whisker width in pixels
-    ErrorBarSize = sys::ImPlotStyleVar__ImPlotStyleVar_ErrorBarSize,
+    ErrorBarSize = sys::ImPlotStyleVar__ImPlotStyleVar_ErrorBarSize as u32,
     /// f32, error bar whisker weight in pixels
-    ErrorBarWeight = sys::ImPlotStyleVar__ImPlotStyleVar_ErrorBarWeight,
+    ErrorBarWeight = sys::ImPlotStyleVar__ImPlotStyleVar_ErrorBarWeight as u32,
     /// f32, digital channels bit height (at 1) in pixels
-    DigitalBitHeight = sys::ImPlotStyleVar__ImPlotStyleVar_DigitalBitHeight,
+    DigitalBitHeight = sys::ImPlotStyleVar__ImPlotStyleVar_DigitalBitHeight as u32,
     /// f32, digital channels bit padding gap in pixels
-    DigitalBitGap = sys::ImPlotStyleVar__ImPlotStyleVar_DigitalBitGap,
+    DigitalBitGap = sys::ImPlotStyleVar__ImPlotStyleVar_DigitalBitGap as u32,
     /// f32,  thickness of border around plot area
-    PlotBorderSize = sys::ImPlotStyleVar__ImPlotStyleVar_PlotBorderSize,
+    PlotBorderSize = sys::ImPlotStyleVar__ImPlotStyleVar_PlotBorderSize as u32,
     /// f32,  alpha multiplier applied to minor axis grid lines
-    MinorAlpha = sys::ImPlotStyleVar__ImPlotStyleVar_MinorAlpha,
+    MinorAlpha = sys::ImPlotStyleVar__ImPlotStyleVar_MinorAlpha as u32,
     /// ImVec2, major tick lengths for X and Y axes
-    MajorTickLen = sys::ImPlotStyleVar__ImPlotStyleVar_MajorTickLen,
+    MajorTickLen = sys::ImPlotStyleVar__ImPlotStyleVar_MajorTickLen as u32,
     /// ImVec2, minor tick lengths for X and Y axes
-    MinorTickLen = sys::ImPlotStyleVar__ImPlotStyleVar_MinorTickLen,
+    MinorTickLen = sys::ImPlotStyleVar__ImPlotStyleVar_MinorTickLen as u32,
     /// ImVec2, line thickness of major ticks
-    MajorTickSize = sys::ImPlotStyleVar__ImPlotStyleVar_MajorTickSize,
+    MajorTickSize = sys::ImPlotStyleVar__ImPlotStyleVar_MajorTickSize as u32,
     /// ImVec2, line thickness of minor ticks
-    MinorTickSize = sys::ImPlotStyleVar__ImPlotStyleVar_MinorTickSize,
+    MinorTickSize = sys::ImPlotStyleVar__ImPlotStyleVar_MinorTickSize as u32,
     /// ImVec2, line thickness of major grid lines
-    MajorGridSize = sys::ImPlotStyleVar__ImPlotStyleVar_MajorGridSize,
+    MajorGridSize = sys::ImPlotStyleVar__ImPlotStyleVar_MajorGridSize as u32,
     /// ImVec2, line thickness of minor grid lines
-    MinorGridSize = sys::ImPlotStyleVar__ImPlotStyleVar_MinorGridSize,
+    MinorGridSize = sys::ImPlotStyleVar__ImPlotStyleVar_MinorGridSize as u32,
     /// ImVec2, padding between widget frame and plot area and/or labels
-    PlotPadding = sys::ImPlotStyleVar__ImPlotStyleVar_PlotPadding,
+    PlotPadding = sys::ImPlotStyleVar__ImPlotStyleVar_PlotPadding as u32,
     /// ImVec2, padding between axes labels, tick labels, and plot edge
-    LabelPadding = sys::ImPlotStyleVar__ImPlotStyleVar_LabelPadding,
+    LabelPadding = sys::ImPlotStyleVar__ImPlotStyleVar_LabelPadding as u32,
     /// ImVec2, legend padding from top-left of plot
-    LegendPadding = sys::ImPlotStyleVar__ImPlotStyleVar_LegendPadding,
+    LegendPadding = sys::ImPlotStyleVar__ImPlotStyleVar_LegendPadding as u32,
     /// ImVec2, legend inner padding from legend edges
-    LegendInnerPadding = sys::ImPlotStyleVar__ImPlotStyleVar_LegendInnerPadding,
+    LegendInnerPadding = sys::ImPlotStyleVar__ImPlotStyleVar_LegendInnerPadding as u32,
     /// ImVec2, spacing between legend entries
-    LegendSpacing = sys::ImPlotStyleVar__ImPlotStyleVar_LegendSpacing,
+    LegendSpacing = sys::ImPlotStyleVar__ImPlotStyleVar_LegendSpacing as u32,
     /// ImVec2, padding between plot edge and interior info text
-    MousePosPadding = sys::ImPlotStyleVar__ImPlotStyleVar_MousePosPadding,
+    MousePosPadding = sys::ImPlotStyleVar__ImPlotStyleVar_MousePosPadding as u32,
     /// ImVec2, text padding around annotation labels
-    AnnotationPadding = sys::ImPlotStyleVar__ImPlotStyleVar_AnnotationPadding,
+    AnnotationPadding = sys::ImPlotStyleVar__ImPlotStyleVar_AnnotationPadding as u32,
     /// ImVec2, additional fit padding as a percentage of the fit extents
     /// (e.g. ImVec2(0.1f,0.1f) adds 10% to the fit extents of X and Y)
-    FitPadding = sys::ImPlotStyleVar__ImPlotStyleVar_FitPadding,
+    FitPadding = sys::ImPlotStyleVar__ImPlotStyleVar_FitPadding as u32,
     /// ImVec2, default size used when ImVec2(0,0) is passed to BeginPlot
-    PlotDefaultSize = sys::ImPlotStyleVar__ImPlotStyleVar_PlotDefaultSize,
+    PlotDefaultSize = sys::ImPlotStyleVar__ImPlotStyleVar_PlotDefaultSize as u32,
     /// ImVec2, minimum size plot frame can be when shrunk
-    PlotMinSize = sys::ImPlotStyleVar__ImPlotStyleVar_PlotMinSize,
+    PlotMinSize = sys::ImPlotStyleVar__ImPlotStyleVar_PlotMinSize as u32,
 }
 
 /// Used to position items on a plot (e.g. legends, labels, etc.)
@@ -250,32 +265,23 @@ pub enum StyleVar {
 #[derive(Copy, Clone, Debug)]
 pub enum PlotLocation {
     /// Center-center
-    Center = sys::ImPlotLocation__ImPlotLocation_Center,
+    Center = sys::ImPlotLocation__ImPlotLocation_Center as u32,
     /// Top-center
-    North = sys::ImPlotLocation__ImPlotLocation_North,
+    North = sys::ImPlotLocation__ImPlotLocation_North as u32,
     /// Bottom-center
-    South = sys::ImPlotLocation__ImPlotLocation_South,
+    South = sys::ImPlotLocation__ImPlotLocation_South as u32,
     /// Center-left
-    West = sys::ImPlotLocation__ImPlotLocation_West,
+    West = sys::ImPlotLocation__ImPlotLocation_West as u32,
     /// Center-right
-    East = sys::ImPlotLocation__ImPlotLocation_East,
+    East = sys::ImPlotLocation__ImPlotLocation_East as u32,
     /// Top-left
-    NorthWest = sys::ImPlotLocation__ImPlotLocation_NorthWest,
+    NorthWest = sys::ImPlotLocation__ImPlotLocation_NorthWest as u32,
     /// Top-right
-    NorthEast = sys::ImPlotLocation__ImPlotLocation_NorthEast,
+    NorthEast = sys::ImPlotLocation__ImPlotLocation_NorthEast as u32,
     /// Bottom-left
-    SouthWest = sys::ImPlotLocation__ImPlotLocation_SouthWest,
+    SouthWest = sys::ImPlotLocation__ImPlotLocation_SouthWest as u32,
     /// Bottom-right
-    SouthEast = sys::ImPlotLocation__ImPlotLocation_SouthEast,
-}
-
-#[rustversion::attr(since(1.48), doc(alias = "ImPlotOrientation"))]
-/// Used to orient items on a plot (e.g. legends, labels, etc.)
-#[repr(u32)]
-#[derive(Copy, Clone, Debug)]
-pub enum PlotOrientation {
-    Horizontal = sys::ImPlotOrientation__ImPlotOrientation_Horizontal,
-    Vertical = sys::ImPlotOrientation__ImPlotOrientation_Vertical,
+    SouthEast = sys::ImPlotLocation__ImPlotLocation_SouthEast as u32,
 }
 
 /// Switch to one of the built-in preset colormaps. If samples is greater than 1, the map will be
@@ -286,7 +292,7 @@ pub fn set_colormap_from_preset(preset: Colormap, samples: u32) {
         // "as" casts saturate as of Rust 1.45. This is safe here, and at least the enum
         // values are not expected to go outside the range of an i32 anyway, so there is no
         // risk of changed values.
-        sys::ImPlot_SetColormapPlotColormap(preset as i32, samples as i32);
+        // sys::ImPlot_SetColormapPlotColormap(preset as i32, samples as i32);
     }
 }
 
@@ -294,7 +300,7 @@ pub fn set_colormap_from_preset(preset: Colormap, samples: u32) {
 #[rustversion::attr(since(1.48), doc(alias = "SetColormap"))]
 pub fn set_colormap_from_vec(colors: Vec<ImVec4>) {
     unsafe {
-        sys::ImPlot_SetColormapVec4Ptr(colors.as_ptr(), colors.len() as i32);
+        // sys::ImPlot_SetColormapVec4Ptr(colors.as_ptr(), colors.len() as i32);
     }
 }
 
@@ -319,6 +325,7 @@ pub fn push_style_color(
     alpha: f32,
 ) -> StyleColorToken {
     unsafe {
+        /* 
         sys::ImPlot_PushStyleColorVec4(
             *element as sys::ImPlotCol,
             sys::ImVec4 {
@@ -328,6 +335,7 @@ pub fn push_style_color(
                 w: alpha,
             },
         );
+        */
     }
     StyleColorToken { was_popped: false }
 }
@@ -362,7 +370,7 @@ impl StyleColorToken {
 #[rustversion::attr(since(1.48), doc(alias = "PushStyleVar"))]
 pub fn push_style_var_f32(element: &StyleVar, value: f32) -> StyleVarToken {
     unsafe {
-        sys::ImPlot_PushStyleVarFloat(*element as sys::ImPlotStyleVar, value);
+        // sys::ImPlot_PushStyleVarFloat(*element as sys::ImPlotStyleVar, value);
     }
     StyleVarToken { was_popped: false }
 }
@@ -378,7 +386,7 @@ pub fn push_style_var_f32(element: &StyleVar, value: f32) -> StyleVarToken {
 #[rustversion::attr(since(1.48), doc(alias = "PushStyleVar"))]
 pub fn push_style_var_i32(element: &StyleVar, value: i32) -> StyleVarToken {
     unsafe {
-        sys::ImPlot_PushStyleVarInt(*element as sys::ImPlotStyleVar, value);
+        // sys::ImPlot_PushStyleVarInt(*element as sys::ImPlotStyleVar, value);
     }
     StyleVarToken { was_popped: false }
 }
@@ -387,7 +395,7 @@ pub fn push_style_var_i32(element: &StyleVar, value: i32) -> StyleVarToken {
 /// the variable from the stack again.
 pub fn push_style_var_imvec2(element: &StyleVar, value: ImVec2) -> StyleVarToken {
     unsafe {
-        sys::ImPlot_PushStyleVarVec2(*element as sys::ImPlotStyleVar, value);
+        // sys::ImPlot_PushStyleVarVec2(*element as sys::ImPlotStyleVar, value);
     }
     StyleVarToken { was_popped: false }
 }
@@ -419,11 +427,13 @@ pub fn is_plot_hovered() -> bool {
     unsafe { sys::ImPlot_IsPlotHovered() }
 }
 
+/* 
 /// Returns true if the current or most recent plot is queried
 #[rustversion::attr(since(1.48), doc(alias = "IsPlotQueried"))]
 pub fn is_plot_queried() -> bool {
     unsafe { sys::ImPlot_IsPlotQueried() }
 }
+*/
 
 /// Returns the mouse position in x,y coordinates of the current or most recent plot,
 /// for the specified choice of Y axis. If `None` is the Y axis choice, that means the
@@ -431,9 +441,9 @@ pub fn is_plot_queried() -> bool {
 #[rustversion::attr(since(1.48), doc(alias = "GetPlotMousePos"))]
 pub fn get_plot_mouse_position(y_axis_choice: Option<YAxisChoice>) -> ImPlotPoint {
     let y_axis_choice_i32 = y_axis_choice_option_to_i32(y_axis_choice);
-    let mut point = ImPlotPoint { x: 0.0, y: 0.0 }; // doesn't seem to have default()
+    let mut point = ImPlotPoint { X: 0.0, Y: 0.0 }; // doesn't seem to have default()
     unsafe {
-        sys::ImPlot_GetPlotMousePos(&mut point as *mut ImPlotPoint, y_axis_choice_i32);
+        // sys::ImPlot_GetPlotMousePos(&mut point as *mut ImPlotPoint, y_axis_choice_i32);
     }
     point
 }
@@ -446,13 +456,15 @@ pub fn pixels_to_plot_vec2(
     y_axis_choice: Option<YAxisChoice>,
 ) -> ImPlotPoint {
     let y_axis_choice_i32 = y_axis_choice_option_to_i32(y_axis_choice);
-    let mut point = ImPlotPoint { x: 0.0, y: 0.0 }; // doesn't seem to have default()
+    let mut point = ImPlotPoint { X: 0.0, Y: 0.0 }; // doesn't seem to have default()
     unsafe {
+        /* 
         sys::ImPlot_PixelsToPlotVec2(
             &mut point as *mut ImPlotPoint,
             *pixel_position,
             y_axis_choice_i32,
         );
+        */
     }
     point
 }
@@ -466,14 +478,16 @@ pub fn pixels_to_plot_f32(
     y_axis_choice: Option<YAxisChoice>,
 ) -> ImPlotPoint {
     let y_axis_choice_i32 = y_axis_choice_option_to_i32(y_axis_choice);
-    let mut point = ImPlotPoint { x: 0.0, y: 0.0 }; // doesn't seem to have default()
+    let mut point = ImPlotPoint { X: 0.0, Y: 0.0 }; // doesn't seem to have default()
     unsafe {
+        /* 
         sys::ImPlot_PixelsToPlotFloat(
             &mut point as *mut ImPlotPoint,
             pixel_position_x,
             pixel_position_y,
             y_axis_choice_i32,
         );
+        */
     }
     point
 }
@@ -489,11 +503,13 @@ pub fn plot_to_pixels_vec2(
     let y_axis_choice_i32 = y_axis_choice_option_to_i32(y_axis_choice);
     let mut pixel_position = ImVec2 { x: 0.0, y: 0.0 }; // doesn't seem to have default()
     unsafe {
+        /* 
         sys::ImPlot_PlotToPixelsPlotPoInt(
             &mut pixel_position as *mut ImVec2,
             *plot_position,
             y_axis_choice_i32,
         );
+        */
     }
     pixel_position
 }
@@ -509,12 +525,14 @@ pub fn plot_to_pixels_f32(
     let y_axis_choice_i32 = y_axis_choice_option_to_i32(y_axis_choice);
     let mut pixel_position = ImVec2 { x: 0.0, y: 0.0 }; // doesn't seem to have default()
     unsafe {
+        /* 
         sys::ImPlot_PlotToPixelsdouble(
             &mut pixel_position as *mut ImVec2,
             plot_position_x,
             plot_position_y,
             y_axis_choice_i32,
         );
+        */
     }
     pixel_position
 }
@@ -522,15 +540,15 @@ pub fn plot_to_pixels_f32(
 /// Returns the current or most recent plot axis range for the specified choice of Y axis. If
 /// `None` is the Y axis choice, that means the most recently selected Y axis is chosen.
 #[rustversion::attr(since(1.48), doc(alias = "GetPlotLimits"))]
-pub fn get_plot_limits(y_axis_choice: Option<YAxisChoice>) -> ImPlotLimits {
+pub fn get_plot_limits(y_axis_choice: Option<YAxisChoice>) -> ImPlotRect {
     let y_axis_choice_i32 = y_axis_choice_option_to_i32(y_axis_choice);
-    // ImPlotLimits doesn't seem to have default()
-    let mut limits = ImPlotLimits {
+    // ImPlotRect doesn't seem to have default()
+    let mut limits = ImPlotRect {
         X: ImPlotRange { Min: 0.0, Max: 0.0 },
         Y: ImPlotRange { Min: 0.0, Max: 0.0 },
     };
     unsafe {
-        sys::ImPlot_GetPlotLimits(&mut limits as *mut ImPlotLimits, y_axis_choice_i32);
+        // sys::ImPlot_GetPlotLimits(&mut limits as *mut ImPlotRect, y_axis_choice_i32);
     }
     limits
 }
@@ -538,31 +556,31 @@ pub fn get_plot_limits(y_axis_choice: Option<YAxisChoice>) -> ImPlotLimits {
 /// Returns the query limits of the current or most recent plot, for the specified choice of Y
 /// axis. If `None` is the Y axis choice, that means the most recently selected Y axis is chosen.
 #[rustversion::attr(since(1.48), doc(alias = "GetPlotQuery"))]
-pub fn get_plot_query(y_axis_choice: Option<YAxisChoice>) -> ImPlotLimits {
+pub fn get_plot_query(y_axis_choice: Option<YAxisChoice>) -> ImPlotRect {
     let y_axis_choice_i32 = y_axis_choice_option_to_i32(y_axis_choice);
-    // ImPlotLimits doesn't seem to have default()
-    let mut limits = ImPlotLimits {
+    // ImPlotRect doesn't seem to have default()
+    let mut limits = ImPlotRect {
         X: ImPlotRange { Min: 0.0, Max: 0.0 },
         Y: ImPlotRange { Min: 0.0, Max: 0.0 },
     };
     unsafe {
-        sys::ImPlot_GetPlotQuery(&mut limits as *mut ImPlotLimits, y_axis_choice_i32);
+        // sys::ImPlot_DragRect(id, x1, y1, x2, y2, col, flags, out_clicked, out_hovered, held)
+        // sys::ImPlot_GetPlotQuery(&mut limits as *mut ImPlotRect, y_axis_choice_i32);
     }
     limits
 }
 
 /// Set the Y axis to be used for any upcoming plot elements
-#[rustversion::attr(since(1.48), doc(alias = "SetPlotYAxis"))]
-pub fn set_plot_y_axis(y_axis_choice: YAxisChoice) {
+pub fn set_axis(y_axis_choice: YAxisChoice) {
     unsafe {
-        sys::ImPlot_SetPlotYAxis(y_axis_choice as i32);
+        sys::ImPlot_SetAxis(y_axis_choice as i32);
     }
 }
 
 /// Returns true if the XAxis plot area in the current plot is hovered.
 #[rustversion::attr(since(1.48), doc(alias = "IsPlotXAxisHovered"))]
 pub fn is_plot_x_axis_hovered() -> bool {
-    unsafe { sys::ImPlot_IsPlotXAxisHovered() }
+    unsafe { sys::ImPlot_IsAxisHovered(Axis::X1 as i32) }
 }
 
 /// Returns true if the Y axis area of the given Y axis choice in the current plot is hovered. If
@@ -570,7 +588,7 @@ pub fn is_plot_x_axis_hovered() -> bool {
 #[rustversion::attr(since(1.48), doc(alias = "IsPlotYAxisHovered"))]
 pub fn is_plot_y_axis_hovered(y_axis_choice: Option<YAxisChoice>) -> bool {
     let y_axis_choice_i32 = y_axis_choice_option_to_i32(y_axis_choice);
-    unsafe { sys::ImPlot_IsPlotYAxisHovered(y_axis_choice_i32) }
+    unsafe { sys::ImPlot_IsAxisHovered(y_axis_choice_i32) }
 }
 
 /// Returns true if the given item in the legend of the current plot is hovered.

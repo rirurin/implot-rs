@@ -1,5 +1,5 @@
-use bindgen::{Builder, CargoCallbacks};
-use std::{env, io::Write, path::PathBuf};
+use bindgen::builder;
+use std::{env, io::Write};
 
 // All this crate does is run bindgen on cimplot and store the result
 // in the src folder of the implot-sys crate. We add those bindings
@@ -7,48 +7,32 @@ use std::{env, io::Write, path::PathBuf};
 
 fn main() {
     let cwd = env::current_dir().expect("Could not read current directory");
-    let sys_crate_path = cwd
-        .join("..")
-        .join("implot-sys")
-        .canonicalize()
-        .expect("Could not find sys crate directory");
-
-    let cimgui_include_path = PathBuf::from(
-        env::var_os("DEP_IMGUI_THIRD_PARTY").expect("DEP_IMGUI_THIRD_PARTY not defined"),
-    );
-
-    let bindings = Builder::default()
-        .header(
-            cimgui_include_path
-                .join("cimgui.h")
-                .to_str()
-                .expect("Could not convert cimgui.h path to string"),
-        )
-        .header(
-            sys_crate_path
-                .join("third-party")
-                .join("cimplot")
-                .join("cimplot.h")
-                .to_str()
-                .expect("Could not turn cimplot.h path into string"),
-        )
-        .parse_callbacks(Box::new(CargoCallbacks))
-        .clang_arg("-DCIMGUI_DEFINE_ENUMS_AND_STRUCTS=1")
+    let sys_crate_path = cwd.join("..").join("implot-sys").canonicalize().expect("Could not find sys crate directory");
+    let bindings = builder()
+        .headers([
+            &sys_crate_path.join("third-party").join("cimgui").join("cimgui.h").to_str().expect("Could not convert cimgui.h path to string")[4..],
+            &sys_crate_path.join("third-party").join("cimplot").join("cimplot.h").to_str().expect("Could not turn cimplot.h path into string")[4..],
+        ])
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+        .clang_args(["-DCIMGUI_DEFINE_ENUMS_AND_STRUCTS=1"])
         // Reuse the imgui types that implot requires from imgui_sys so we don't define
         // our own new types.
-        .raw_line("pub use imgui_sys::{ImVec2, ImVec4, ImGuiCond, ImTextureID};")
-        .raw_line("pub use imgui_sys::{ImGuiContext, ImGuiKeyModFlags, ImDrawList};")
-        .raw_line("pub use imgui_sys::{ImGuiMouseButton, ImGuiDragDropFlags};")
-        .whitelist_recursively(false)
-        .whitelist_function("ImPlot.*")
-        .whitelist_type("ImPlot.*")
+        .raw_line("pub use imgui_sys::*;")
+        .layout_tests(false)
+        .allowlist_recursively(false)
+        .allowlist_function("ImPlot.*")
+        .allowlist_type("ImPlot.*")
         // We do want to create bindings for the scalar typedefs
-        .whitelist_type("Im[U|S][0-9]{1,2}")
+        .allowlist_type("Im[U|S][0-9]{1,2}")
+        .allowlist_type("ImAxis.*")
         // Remove some functions that would take a variable-argument list
-        .blacklist_function("ImPlot_AnnotateVVec4")
-        .blacklist_function("ImPlot_AnnotateVStr")
-        .blacklist_function("ImPlot_AnnotateClampedVVec4")
-        .blacklist_function("ImPlot_AnnotateClampedVStr")
+        .blocklist_function("ImPlot_AnnotateVVec4")
+        .blocklist_function("ImPlot_AnnotateVStr")
+        .blocklist_function("ImPlot_AnnotateClampedVVec4")
+        .blocklist_function("ImPlot_AnnotateClampedVStr")
+        .blocklist_function("ImPlot_AnnotationV")
+        .blocklist_function("ImPlot_TagXV")
+        .blocklist_function("ImPlot_TagYV")
         .generate()
         .expect("Unable to generate bindings");
 

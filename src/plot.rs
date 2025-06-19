@@ -2,19 +2,18 @@
 //!
 //! This module defines the `Plot` struct, which is used to create a 2D plot that will
 //! contain all other objects that can be created using this library.
-use crate::{Context, PlotLocation, PlotOrientation, PlotUi, YAxisChoice, NUMBER_OF_Y_AXES};
+use crate::{Context, PlotLocation, PlotUi, YAxisChoice, NUMBER_OF_Y_AXES};
 use bitflags::bitflags;
 pub use imgui::Condition;
 use implot_sys as sys;
 use std::ffi::CString;
 use std::os::raw::c_char;
 use std::{cell::RefCell, rc::Rc};
-pub use sys::{ImPlotLimits, ImPlotPoint, ImPlotRange, ImVec2, ImVec4};
+pub use sys::{ImPlotRect, ImPlotPoint, ImPlotRange, ImVec2, ImVec4};
 
 const DEFAULT_PLOT_SIZE_X: f32 = 400.0;
 const DEFAULT_PLOT_SIZE_Y: f32 = 400.0;
 
-#[rustversion::attr(since(1.48), doc(alias = "ImPlotFlags"))]
 bitflags! {
     /// Flags for customizing plot behavior and interaction. Documentation copied from implot.h for
     /// convenience. ImPlot itself also has a "CanvasOnly" flag, which can be emulated here with
@@ -22,36 +21,50 @@ bitflags! {
     #[repr(transparent)]
     pub struct PlotFlags: u32 {
         /// "Default" according to original docs
-        const NONE = sys::ImPlotFlags__ImPlotFlags_None;
+        const NONE = sys::ImPlotFlags__ImPlotFlags_None as u32;
+        /// the plot title will not be displayed (titles are also hidden if preceeded by double hashes, e.g. "##MyPlot")
+        const NO_TITLE = sys::ImPlotFlags__ImPlotFlags_NoTitle as u32;
         /// Plot items will not be highlighted when their legend entry is hovered
-        const NO_LEGEND = sys::ImPlotFlags__ImPlotFlags_NoLegend;
+        const NO_LEGEND = sys::ImPlotFlags__ImPlotFlags_NoLegend as u32;
+        /// the mouse position, in plot coordinates, will not be displayed inside of the plot
+        const NO_MOUSE_TEXT = sys::ImPlotFlags__ImPlotFlags_NoMouseText as u32;
+        /// the user will not be able to interact with the plot
+        const NO_INPUTS = sys::ImPlotFlags__ImPlotFlags_NoInputs as u32;
         /// The user will not be able to open context menus with double-right click
-        const NO_MENUS = sys::ImPlotFlags__ImPlotFlags_NoMenus;
+        const NO_MENUS = sys::ImPlotFlags__ImPlotFlags_NoMenus as u32;
         /// The user will not be able to box-select with right-mouse
-        const NO_BOX_SELECT = sys::ImPlotFlags__ImPlotFlags_NoBoxSelect;
+        const NO_BOX_SELECT = sys::ImPlotFlags__ImPlotFlags_NoBoxSelect as u32;
         /// The mouse position, in plot coordinates, will not be displayed
-        const NO_MOUSE_POSITION = sys::ImPlotFlags__ImPlotFlags_NoMousePos;
+        /* 
+        const NO_MOUSE_POSITION = sys::ImPlotFlags__ImPlotFlags_NoMousePos as u32;
         /// Plot items will not be highlighted when their legend entry is hovered
-        const NO_HIGHLIGHT = sys::ImPlotFlags__ImPlotFlags_NoHighlight;
+        const NO_HIGHLIGHT = sys::ImPlotFlags__ImPlotFlags_NoHighlight as u32;
+        
         /// A child window region will not be used to capture mouse scroll (can boost performance
         /// for single ImGui window applications)
-        const NO_CHILD = sys::ImPlotFlags__ImPlotFlags_NoChild;
+        const NO_CHILD = sys::ImPlotFlags__ImPlotFlags_NoChild as u32;
         /// Use an aspect ratio of 1:1 for the plot
-        const AXIS_EQUAL = sys::ImPlotFlags__ImPlotFlags_Equal;
+        const AXIS_EQUAL = sys::ImPlotFlags__ImPlotFlags_Equal as u32;
         /// Enable a 2nd y axis
-        const Y_AXIS_2 = sys::ImPlotFlags__ImPlotFlags_YAxis2;
+        const Y_AXIS_2 = sys::ImPlotFlags__ImPlotFlags_YAxis2 as u32;
         /// Enable a 3nd y axis
-        const Y_AXIS_3 = sys::ImPlotFlags__ImPlotFlags_YAxis3;
+        const Y_AXIS_3 = sys::ImPlotFlags__ImPlotFlags_YAxis3 as u32;
         /// The user will be able to draw query rects with middle-mouse
-        const QUERY = sys::ImPlotFlags__ImPlotFlags_Query;
+        const QUERY = sys::ImPlotFlags__ImPlotFlags_Query as u32;
         /// The default mouse cursor will be replaced with a crosshair when hovered
-        const CROSSHAIRS = sys::ImPlotFlags__ImPlotFlags_Crosshairs;
+        const CROSSHAIRS = sys::ImPlotFlags__ImPlotFlags_Crosshairs as u32;
         /// Plot data outside the plot area will be culled from rendering
-        const ANTIALIASED = sys::ImPlotFlags__ImPlotFlags_AntiAliased;
+        const ANTIALIASED = sys::ImPlotFlags__ImPlotFlags_AntiAliased as u32;
+        */
+        /// the ImGui frame will not be rendered
+        const NO_FRAME = sys::ImPlotFlags__ImPlotFlags_NoFrame as u32;
+        /// x and y axes pairs will be constrained to have the same units/pixel
+        const EQUAL = sys::ImPlotFlags__ImPlotFlags_Equal as u32;
+        /// the default mouse cursor will be replaced with a crosshair when hovered
+        const CROSSHAIRS = sys::ImPlotFlags__ImPlotFlags_Equal as u32;
     }
 }
 
-#[rustversion::attr(since(1.48), doc(alias = "ImPlotAxisFlags"))]
 bitflags! {
     /// Axis flags. Documentation copied from implot.h for convenience. ImPlot itself also
     /// has `Lock`, which combines `LOCK_MIN` and `LOCK_MAX`, and `NoDecorations`, which combines
@@ -59,23 +72,37 @@ bitflags! {
     #[repr(transparent)]
     pub struct AxisFlags: u32 {
         /// "Default" according to original docs
-        const NONE = sys::ImPlotAxisFlags__ImPlotAxisFlags_None;
+        const NONE = sys::ImPlotAxisFlags__ImPlotAxisFlags_None as u32;
+        /// the axis label will not be displayed (axis labels are also hidden if the supplied string name is nullptr)
+        const NO_LABEL = sys::ImPlotAxisFlags__ImPlotAxisFlags_NoLabel as u32;
         /// Grid lines will not be displayed
-        const NO_GRID_LINES = sys::ImPlotAxisFlags__ImPlotAxisFlags_NoGridLines;
+        const NO_GRID_LINES = sys::ImPlotAxisFlags__ImPlotAxisFlags_NoGridLines as u32;
         /// Tick marks will not be displayed
-        const NO_TICK_MARKS = sys::ImPlotAxisFlags__ImPlotAxisFlags_NoTickMarks;
+        const NO_TICK_MARKS = sys::ImPlotAxisFlags__ImPlotAxisFlags_NoTickMarks as u32;
         /// Text labels will not be displayed
-        const NO_TICK_LABELS = sys::ImPlotAxisFlags__ImPlotAxisFlags_NoTickLabels;
-        /// A logartithmic (base 10) axis scale will be used (mutually exclusive with AxisFlags::TIME)
-        const LOG_SCALE = sys::ImPlotAxisFlags__ImPlotAxisFlags_LogScale;
-        /// Axis will display date/time formatted labels (mutually exclusive with AxisFlags::LOG_SCALE)
-        const TIME = sys::ImPlotAxisFlags__ImPlotAxisFlags_Time;
+        const NO_TICK_LABELS = sys::ImPlotAxisFlags__ImPlotAxisFlags_NoTickLabels as u32;
+        /// axis will not be initially fit to data extents on the first rendered frame
+        const NO_INITIAL_FIT = sys::ImPlotAxisFlags__ImPlotAxisFlags_NoTickLabels as u32;
+        /// the user will not be able to open context menus with right-click
+        const NO_MENUS = sys::ImPlotAxisFlags__ImPlotAxisFlags_NoMenus as u32;
+        /// the user will not be able to switch the axis side by dragging it
+        const NO_SIDE_SWITCH = sys::ImPlotAxisFlags__ImPlotAxisFlags_NoSideSwitch as u32;
+        /// the axis will not have its background highlighted when hovered or held
+        const NO_HIGHLIGHT = sys::ImPlotAxisFlags__ImPlotAxisFlags_NoHighlight as u32;
+        const OPPOSITE = sys::ImPlotAxisFlags__ImPlotAxisFlags_Opposite as u32;
+        const FOREGROUND = sys::ImPlotAxisFlags__ImPlotAxisFlags_Foreground as u32;
         /// The axis will be inverted
-        const INVERT = sys::ImPlotAxisFlags__ImPlotAxisFlags_Invert;
+        const INVERT = sys::ImPlotAxisFlags__ImPlotAxisFlags_Invert as u32;
+        const AUTO_FIT = sys::ImPlotAxisFlags__ImPlotAxisFlags_AutoFit as u32;
+        const RANGE_FIT = sys::ImPlotAxisFlags__ImPlotAxisFlags_RangeFit as u32;
+        const PAN_STRETCH = sys::ImPlotAxisFlags__ImPlotAxisFlags_PanStretch as u32;
         /// The axis minimum value will be locked when panning/zooming
-        const LOCK_MIN = sys::ImPlotAxisFlags__ImPlotAxisFlags_LockMin;
+        const LOCK_MIN = sys::ImPlotAxisFlags__ImPlotAxisFlags_LockMin as u32;
         /// The axis maximum value will be locked when panning/zooming
-        const LOCK_MAX = sys::ImPlotAxisFlags__ImPlotAxisFlags_LockMax;
+        const LOCK_MAX = sys::ImPlotAxisFlags__ImPlotAxisFlags_LockMax as u32;
+        const LOCK = sys::ImPlotAxisFlags__ImPlotAxisFlags_Lock as u32;
+        const NO_DECORATIONS = sys::ImPlotAxisFlags__ImPlotAxisFlags_NoDecorations as u32;
+        const AUX_DEFAULT = sys::ImPlotAxisFlags__ImPlotAxisFlags_AuxDefault as u32;
     }
 }
 
@@ -147,13 +174,13 @@ pub struct Plot {
     /// is set, implot's defaults are used. Note also  that if these are set, then implot's
     /// interactive legend configuration does not work because it is overridden by the settings
     /// here.
-    legend_configuration: Option<(PlotLocation, PlotOrientation, bool)>,
+    legend_configuration: Option<(PlotLocation, bool)>,
     /// Flags relating to the plot TODO(4bb4) make those into bitflags
-    plot_flags: sys::ImPlotFlags,
+    plot_flags: PlotFlags,
     /// Flags relating to the X axis of the plot TODO(4bb4) make those into bitflags
-    x_flags: sys::ImPlotAxisFlags,
+    x_flags: AxisFlags,
     /// Flags relating to the each of the Y axes of the plot TODO(4bb4) make those into bitflags
-    y_flags: [sys::ImPlotAxisFlags; NUMBER_OF_Y_AXES],
+    y_flags: [AxisFlags; NUMBER_OF_Y_AXES],
 }
 
 impl Plot {
@@ -184,9 +211,9 @@ impl Plot {
             y_tick_labels: [TICK_NONE; NUMBER_OF_Y_AXES],
             show_y_default_ticks: [false; NUMBER_OF_Y_AXES],
             legend_configuration: None,
-            plot_flags: PlotFlags::ANTIALIASED.bits() as sys::ImPlotFlags,
-            x_flags: AxisFlags::NONE.bits() as sys::ImPlotAxisFlags,
-            y_flags: [AxisFlags::NONE.bits() as sys::ImPlotAxisFlags; NUMBER_OF_Y_AXES],
+            plot_flags: PlotFlags::empty(),
+            x_flags: AxisFlags::empty(),
+            y_flags: [AxisFlags::empty(); NUMBER_OF_Y_AXES],
         }
     }
 
@@ -405,14 +432,14 @@ impl Plot {
     /// Set the plot flags, see the help for `PlotFlags` for what the available flags are
     #[inline]
     pub fn with_plot_flags(mut self, flags: &PlotFlags) -> Self {
-        self.plot_flags = flags.bits() as sys::ImPlotFlags;
+        self.plot_flags = *flags;
         self
     }
 
     /// Set the axis flags for the X axis in this plot
     #[inline]
     pub fn with_x_axis_flags(mut self, flags: &AxisFlags) -> Self {
-        self.x_flags = flags.bits() as sys::ImPlotAxisFlags;
+        self.x_flags =* flags;
         self
     }
 
@@ -420,11 +447,12 @@ impl Plot {
     #[inline]
     pub fn with_y_axis_flags(mut self, y_axis_choice: YAxisChoice, flags: &AxisFlags) -> Self {
         let axis_index = y_axis_choice as usize;
-        self.y_flags[axis_index] = flags.bits() as sys::ImPlotAxisFlags;
+        self.y_flags[axis_index] = *flags;
         self
     }
 
     /// Set the legend location, orientation and whether it is to be drawn outside the plot
+    /* 
     #[rustversion::attr(since(1.48), doc(alias = "SetLegendLocation"))]
     #[inline]
     pub fn with_legend_location(
@@ -436,6 +464,7 @@ impl Plot {
         self.legend_configuration = Some((*location, *orientation, outside));
         self
     }
+    */
 
     /// Internal helper function to set axis limits in case they are specified.
     fn maybe_set_axis_limits(&self) {
@@ -446,6 +475,7 @@ impl Plot {
 
         // --- Direct limit-setting ---
         if let Some(AxisLimitSpecification::Single(limits, condition)) = &self.x_limits {
+            /* 
             unsafe {
                 sys::ImPlot_SetNextPlotLimitsX(
                     limits.Min,
@@ -453,6 +483,7 @@ impl Plot {
                     *condition as sys::ImGuiCond,
                 );
             }
+            */
         }
 
         self.y_limits
@@ -461,12 +492,14 @@ impl Plot {
             .for_each(|(k, limit_spec)| {
                 if let Some(AxisLimitSpecification::Single(limits, condition)) = limit_spec {
                     unsafe {
+                        /* 
                         sys::ImPlot_SetNextPlotLimitsY(
                             limits.Min,
                             limits.Max,
                             *condition as sys::ImGuiCond,
                             k as i32,
                         );
+                        */
                     }
                 }
             });
@@ -503,6 +536,7 @@ impl Plot {
             // Calling this unconditionally here as calling it with all NULL pointers should not
             // affect anything. In terms of unsafety, the pointers should be OK as long as any plot
             // struct that has an Rc to the same data is alive.
+            /* 
             sys::ImPlot_LinkNextPlotLimits(
                 xmin_pointer,
                 xmax_pointer,
@@ -513,6 +547,7 @@ impl Plot {
                 y_limit_pointers[2].0,
                 y_limit_pointers[2].1,
             )
+            */
         }
     }
 
@@ -534,12 +569,14 @@ impl Plot {
             };
 
             unsafe {
+                /* 
                 sys::ImPlot_SetNextPlotTicksXdoublePtr(
                     self.x_tick_positions.as_ref().unwrap().as_ptr(),
                     self.x_tick_positions.as_ref().unwrap().len() as i32,
                     labels_pointer,
                     self.show_x_default_ticks,
                 )
+                */
             }
         }
 
@@ -563,6 +600,7 @@ impl Plot {
                     };
 
                     unsafe {
+                        /* 
                         sys::ImPlot_SetNextPlotTicksYdoublePtr(
                             positions.as_ref().unwrap().as_ptr(),
                             positions.as_ref().unwrap().len() as i32,
@@ -570,6 +608,7 @@ impl Plot {
                             *show_defaults,
                             k as i32,
                         )
+                        */
                     }
                 }
             });
@@ -586,7 +625,7 @@ impl Plot {
     pub fn begin(&self, plot_ui: &PlotUi) -> Option<PlotToken> {
         self.maybe_set_axis_limits();
         self.maybe_set_tick_labels();
-
+        /* 
         let should_render = unsafe {
             let size_vec: ImVec2 = ImVec2 {
                 x: self.size[0],
@@ -631,6 +670,8 @@ impl Plot {
             // called if we don't render. This is more like an imgui popup modal.
             None
         }
+        */
+        None
     }
 
     /// Creates a window and runs a closure to construct the contents. This internally

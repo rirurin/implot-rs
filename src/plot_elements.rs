@@ -35,6 +35,7 @@ impl PlotLine {
             return;
         }
         unsafe {
+            /* 
             sys::ImPlot_PlotLinedoublePtrdoublePtr(
                 self.label.as_ptr() as *const c_char,
                 x.as_ptr(),
@@ -43,6 +44,7 @@ impl PlotLine {
                 0,                           // No offset
                 std::mem::size_of::<f64>() as i32, // Stride, set to one f64 for the standard use case
             );
+            */
         }
     }
 }
@@ -73,6 +75,7 @@ impl PlotStairs {
             return;
         }
         unsafe {
+            /* 
             sys::ImPlot_PlotStairsdoublePtrdoublePtr(
                 self.label.as_ptr() as *const c_char,
                 x.as_ptr(),
@@ -81,6 +84,7 @@ impl PlotStairs {
                 0,                           // No offset
                 std::mem::size_of::<f64>() as i32, // Stride, set to one f64 for the standard use case
             );
+            */
         }
     }
 }
@@ -111,6 +115,7 @@ impl PlotScatter {
             return;
         }
         unsafe {
+            /* 
             sys::ImPlot_PlotScatterdoublePtrdoublePtr(
                 self.label.as_ptr() as *const c_char,
                 x.as_ptr(),
@@ -119,6 +124,7 @@ impl PlotScatter {
                 0,                           // No offset
                 std::mem::size_of::<f64>() as i32, // Stride, set to one f64 for the standard use case
             );
+            */
         }
     }
 }
@@ -177,6 +183,7 @@ impl PlotBars {
             // are the same, so they are unified here. The x and y values have different
             // meanings though, hence the swapping around before they are passed to the
             // plotting function.
+            /* 
             let (plot_function, x, y);
             if self.horizontal_bars {
                 plot_function = sys::ImPlot_PlotBarsHdoublePtrdoublePtr
@@ -215,6 +222,7 @@ impl PlotBars {
                 0,                                 // No offset
                 std::mem::size_of::<f64>() as i32, // Stride, set to one f64 for the standard use case
             );
+            */
         }
     }
 }
@@ -264,6 +272,7 @@ impl PlotText {
         }
 
         unsafe {
+            /* 
             sys::ImPlot_PlotText(
                 self.label.as_ptr() as *const c_char,
                 x,
@@ -274,6 +283,7 @@ impl PlotText {
                     y: self.pixel_offset_y,
                 },
             );
+            */
         }
     }
 }
@@ -311,8 +321,8 @@ impl PlotHeatmap {
                 .unwrap_or_else(|_| panic!("Label string has internal null bytes: {}", label)),
             scale_range: None,
             label_format: Some(CString::new("%.1f").unwrap()),
-            drawarea_lower_left: ImPlotPoint { x: 0.0, y: 0.0 },
-            drawarea_upper_right: ImPlotPoint { x: 1.0, y: 1.0 },
+            drawarea_lower_left: ImPlotPoint { X: 0.0, Y: 0.0 },
+            drawarea_upper_right: ImPlotPoint { X: 1.0, Y: 1.0 },
         }
     }
 
@@ -364,6 +374,7 @@ impl PlotHeatmap {
         });
 
         unsafe {
+            /* 
             sys::ImPlot_PlotHeatmapdoublePtr(
                 self.label.as_ptr() as *const c_char,
                 values.as_ptr(),
@@ -381,6 +392,7 @@ impl PlotHeatmap {
                 self.drawarea_lower_left,
                 self.drawarea_upper_right,
             );
+            */
         }
     }
 }
@@ -421,6 +433,7 @@ impl PlotStems {
             return;
         }
         unsafe {
+            /* 
             sys::ImPlot_PlotStemsdoublePtrdoublePtr(
                 self.label.as_ptr() as *const c_char,
                 axis_positions.as_ptr(),
@@ -430,6 +443,7 @@ impl PlotStems {
                 0,                                 // No offset
                 std::mem::size_of::<f64>() as i32, // Stride, set to one f64 for the standard use case
             );
+            */
         }
     }
 }
