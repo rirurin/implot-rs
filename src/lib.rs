@@ -20,7 +20,10 @@ use implot_sys as sys;
 
 // TODO(4bb4) facade-wrap these?
 pub use self::{context::*, plot::*, plot_elements::*};
-use std::os::raw::c_char;
+use std::{
+    mem::MaybeUninit,
+    os::raw::c_char
+};
 pub use sys::{ImPlotRect, ImPlotPoint, ImPlotRange, ImVec2, ImVec4};
 
 mod context;
@@ -66,6 +69,13 @@ pub enum Axis {
 fn y_axis_choice_option_to_i32(y_axis_choice: Option<YAxisChoice>) -> i32 {
     match y_axis_choice {
         Some(choice) => choice as i32,
+        None => IMPLOT_AUTO,
+    }
+}
+
+fn axis_option_to_i32(axis: Option<Axis>) -> i32 {
+    match axis {
+        Some(a) => a as i32,
         None => IMPLOT_AUTO,
     }
 }
@@ -325,8 +335,7 @@ pub fn push_style_color(
     alpha: f32,
 ) -> StyleColorToken {
     unsafe {
-        /* 
-        sys::ImPlot_PushStyleColorVec4(
+        sys::ImPlot_PushStyleColor_Vec4(
             *element as sys::ImPlotCol,
             sys::ImVec4 {
                 x: red,
@@ -335,7 +344,6 @@ pub fn push_style_color(
                 w: alpha,
             },
         );
-        */
     }
     StyleColorToken { was_popped: false }
 }
@@ -370,7 +378,7 @@ impl StyleColorToken {
 #[rustversion::attr(since(1.48), doc(alias = "PushStyleVar"))]
 pub fn push_style_var_f32(element: &StyleVar, value: f32) -> StyleVarToken {
     unsafe {
-        // sys::ImPlot_PushStyleVarFloat(*element as sys::ImPlotStyleVar, value);
+        sys::ImPlot_PushStyleVar_Float(*element as sys::ImPlotStyleVar, value);
     }
     StyleVarToken { was_popped: false }
 }
@@ -386,7 +394,7 @@ pub fn push_style_var_f32(element: &StyleVar, value: f32) -> StyleVarToken {
 #[rustversion::attr(since(1.48), doc(alias = "PushStyleVar"))]
 pub fn push_style_var_i32(element: &StyleVar, value: i32) -> StyleVarToken {
     unsafe {
-        // sys::ImPlot_PushStyleVarInt(*element as sys::ImPlotStyleVar, value);
+        sys::ImPlot_PushStyleVar_Int(*element as sys::ImPlotStyleVar, value);
     }
     StyleVarToken { was_popped: false }
 }
@@ -395,7 +403,7 @@ pub fn push_style_var_i32(element: &StyleVar, value: i32) -> StyleVarToken {
 /// the variable from the stack again.
 pub fn push_style_var_imvec2(element: &StyleVar, value: ImVec2) -> StyleVarToken {
     unsafe {
-        // sys::ImPlot_PushStyleVarVec2(*element as sys::ImPlotStyleVar, value);
+        sys::ImPlot_PushStyleVar_Vec2(*element as sys::ImPlotStyleVar, value);
     }
     StyleVarToken { was_popped: false }
 }
@@ -439,11 +447,10 @@ pub fn is_plot_queried() -> bool {
 /// for the specified choice of Y axis. If `None` is the Y axis choice, that means the
 /// most recently selected Y axis is chosen.
 #[rustversion::attr(since(1.48), doc(alias = "GetPlotMousePos"))]
-pub fn get_plot_mouse_position(y_axis_choice: Option<YAxisChoice>) -> ImPlotPoint {
-    let y_axis_choice_i32 = y_axis_choice_option_to_i32(y_axis_choice);
+pub fn get_plot_mouse_position(x_axis: Axis, y_axis: Axis) -> ImPlotPoint {
     let mut point = ImPlotPoint { X: 0.0, Y: 0.0 }; // doesn't seem to have default()
     unsafe {
-        // sys::ImPlot_GetPlotMousePos(&mut point as *mut ImPlotPoint, y_axis_choice_i32);
+        sys::ImPlot_GetPlotMousePos(&mut point as *mut ImPlotPoint, x_axis as i32, y_axis as i32);
     }
     point
 }
@@ -453,18 +460,17 @@ pub fn get_plot_mouse_position(y_axis_choice: Option<YAxisChoice>) -> ImPlotPoin
 #[rustversion::attr(since(1.48), doc(alias = "PixelsToPlot"))]
 pub fn pixels_to_plot_vec2(
     pixel_position: &ImVec2,
-    y_axis_choice: Option<YAxisChoice>,
+    x_axis: Axis,
+    y_axis: Axis,
 ) -> ImPlotPoint {
-    let y_axis_choice_i32 = y_axis_choice_option_to_i32(y_axis_choice);
     let mut point = ImPlotPoint { X: 0.0, Y: 0.0 }; // doesn't seem to have default()
     unsafe {
-        /* 
-        sys::ImPlot_PixelsToPlotVec2(
+        sys::ImPlot_PixelsToPlot_Vec2(
             &mut point as *mut ImPlotPoint,
             *pixel_position,
-            y_axis_choice_i32,
+            x_axis as i32,
+            y_axis as i32
         );
-        */
     }
     point
 }
@@ -475,19 +481,18 @@ pub fn pixels_to_plot_vec2(
 pub fn pixels_to_plot_f32(
     pixel_position_x: f32,
     pixel_position_y: f32,
-    y_axis_choice: Option<YAxisChoice>,
+    x_axis: Axis,
+    y_axis: Axis,
 ) -> ImPlotPoint {
-    let y_axis_choice_i32 = y_axis_choice_option_to_i32(y_axis_choice);
     let mut point = ImPlotPoint { X: 0.0, Y: 0.0 }; // doesn't seem to have default()
     unsafe {
-        /* 
-        sys::ImPlot_PixelsToPlotFloat(
+        sys::ImPlot_PixelsToPlot_Float(
             &mut point as *mut ImPlotPoint,
             pixel_position_x,
             pixel_position_y,
-            y_axis_choice_i32,
+            x_axis as i32,
+            y_axis as i32
         );
-        */
     }
     point
 }
@@ -498,18 +503,17 @@ pub fn pixels_to_plot_f32(
 #[rustversion::attr(since(1.48), doc(alias = "PlotToPixels"))]
 pub fn plot_to_pixels_vec2(
     plot_position: &ImPlotPoint,
-    y_axis_choice: Option<YAxisChoice>,
+    x_axis: Axis,
+    y_axis: Axis,
 ) -> ImVec2 {
-    let y_axis_choice_i32 = y_axis_choice_option_to_i32(y_axis_choice);
     let mut pixel_position = ImVec2 { x: 0.0, y: 0.0 }; // doesn't seem to have default()
     unsafe {
-        /* 
-        sys::ImPlot_PlotToPixelsPlotPoInt(
+        sys::ImPlot_PlotToPixels_PlotPoInt(
             &mut pixel_position as *mut ImVec2,
             *plot_position,
-            y_axis_choice_i32,
+            x_axis as i32,
+            y_axis as i32
         );
-        */
     }
     pixel_position
 }
@@ -520,19 +524,18 @@ pub fn plot_to_pixels_vec2(
 pub fn plot_to_pixels_f32(
     plot_position_x: f64,
     plot_position_y: f64,
-    y_axis_choice: Option<YAxisChoice>,
+    x_axis: Axis,
+    y_axis: Axis,
 ) -> ImVec2 {
-    let y_axis_choice_i32 = y_axis_choice_option_to_i32(y_axis_choice);
     let mut pixel_position = ImVec2 { x: 0.0, y: 0.0 }; // doesn't seem to have default()
     unsafe {
-        /* 
-        sys::ImPlot_PlotToPixelsdouble(
+        sys::ImPlot_PlotToPixels_double(
             &mut pixel_position as *mut ImVec2,
             plot_position_x,
             plot_position_y,
-            y_axis_choice_i32,
+            x_axis as i32,
+            y_axis as i32
         );
-        */
     }
     pixel_position
 }
@@ -540,15 +543,14 @@ pub fn plot_to_pixels_f32(
 /// Returns the current or most recent plot axis range for the specified choice of Y axis. If
 /// `None` is the Y axis choice, that means the most recently selected Y axis is chosen.
 #[rustversion::attr(since(1.48), doc(alias = "GetPlotLimits"))]
-pub fn get_plot_limits(y_axis_choice: Option<YAxisChoice>) -> ImPlotRect {
-    let y_axis_choice_i32 = y_axis_choice_option_to_i32(y_axis_choice);
+pub fn get_plot_limits(x_axis: Axis, y_axis: Axis) -> ImPlotRect {
     // ImPlotRect doesn't seem to have default()
     let mut limits = ImPlotRect {
         X: ImPlotRange { Min: 0.0, Max: 0.0 },
         Y: ImPlotRange { Min: 0.0, Max: 0.0 },
     };
     unsafe {
-        // sys::ImPlot_GetPlotLimits(&mut limits as *mut ImPlotRect, y_axis_choice_i32);
+        sys::ImPlot_GetPlotLimits(&mut limits as *mut ImPlotRect, x_axis as i32, y_axis as i32);
     }
     limits
 }
@@ -556,24 +558,30 @@ pub fn get_plot_limits(y_axis_choice: Option<YAxisChoice>) -> ImPlotRect {
 /// Returns the query limits of the current or most recent plot, for the specified choice of Y
 /// axis. If `None` is the Y axis choice, that means the most recently selected Y axis is chosen.
 #[rustversion::attr(since(1.48), doc(alias = "GetPlotQuery"))]
-pub fn get_plot_query(y_axis_choice: Option<YAxisChoice>) -> ImPlotRect {
-    let y_axis_choice_i32 = y_axis_choice_option_to_i32(y_axis_choice);
+pub fn get_plot_query() -> ImPlotRect {
     // ImPlotRect doesn't seem to have default()
-    let mut limits = ImPlotRect {
-        X: ImPlotRange { Min: 0.0, Max: 0.0 },
-        Y: ImPlotRange { Min: 0.0, Max: 0.0 },
-    };
+    let mut limits: MaybeUninit<ImPlotRect> = MaybeUninit::uninit();
     unsafe {
-        // sys::ImPlot_DragRect(id, x1, y1, x2, y2, col, flags, out_clicked, out_hovered, held)
-        // sys::ImPlot_GetPlotQuery(&mut limits as *mut ImPlotRect, y_axis_choice_i32);
+        sys::ImPlot_DragRect(
+            0,
+            &mut limits.assume_init_mut().X.Min, 
+            &mut limits.assume_init_mut().X.Max, 
+            &mut limits.assume_init_mut().X.Min, 
+            &mut limits.assume_init_mut().X.Max, 
+            ImVec4 { x: 0., y: 0., z: 0., w: 0. }, 
+            0, 
+            &mut false, 
+            &mut false, 
+            &mut false
+        );
+        limits.assume_init()
     }
-    limits
 }
 
-/// Set the Y axis to be used for any upcoming plot elements
-pub fn set_axis(y_axis_choice: YAxisChoice) {
+/// Set the X or Y axis to be used for any upcoming plot elements
+pub fn set_axis(axis: Axis) {
     unsafe {
-        sys::ImPlot_SetAxis(y_axis_choice as i32);
+        sys::ImPlot_SetAxis(axis as i32);
     }
 }
 

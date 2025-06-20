@@ -32,6 +32,7 @@ fn main() -> io::Result<()> {
     let mut build = cc::Build::new();
     build.cpp(true);
 
+    let cwd = env::current_dir().expect("Could not read current directory");
     // Take over imgui preprocessor defines from the imgui-sys crate.
     // Taken from https://github.com/aloucks/imguizmo-rs/blob/master/imguizmo-sys/build.rs
     for (key, val) in env::vars().filter(|(key, _)| key.starts_with("DEP_IMGUI_DEFINE_")) {
@@ -44,8 +45,9 @@ fn main() -> io::Result<()> {
         build.define(key, val);
     }
 
-    let cimgui_include_path =
-        env::var_os("DEP_IMGUI_THIRD_PARTY").expect("DEP_IMGUI_THIRD_PARTY not defined");
+    // let cimgui_include_path =
+    //     env::var_os("DEP_IMGUI_THIRD_PARTY").expect("DEP_IMGUI_THIRD_PARTY not defined");
+    let cimgui_include_path = cwd.join("third-party").join("cimgui");
     let imgui_include_path = Path::new(&cimgui_include_path).join("imgui");
     build.include(&cimgui_include_path);
     build.include(&imgui_include_path);

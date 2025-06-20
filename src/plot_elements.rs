@@ -7,6 +7,16 @@ use crate::sys;
 use std::ffi::CString;
 use std::os::raw::c_char;
 
+use crate::plot::{
+    BarsFlags,
+    HeatmapFlags,
+    LineFlags,
+    ScatterFlags,
+    StemsFlags,
+    StairsFlags,
+    TextFlags
+};
+
 pub use crate::sys::ImPlotPoint;
 
 // --- Actual plotting functionality -------------------------------------------------------------
@@ -14,6 +24,7 @@ pub use crate::sys::ImPlotPoint;
 pub struct PlotLine {
     /// Label to show in the legend for this line
     label: CString,
+    flags: LineFlags
 }
 
 impl PlotLine {
@@ -22,10 +33,24 @@ impl PlotLine {
     /// # Panics
     /// Will panic if the label string contains internal null bytes.
     pub fn new(label: &str) -> Self {
+        Self::new_with_flags(label, LineFlags::empty()) 
+    }
+
+    /// Create a new line to be plotted. Does not draw anything yet.
+    ///
+    /// # Panics
+    /// Will panic if the label string contains internal null bytes.
+    pub fn new_with_flags(label: &str, flags: LineFlags) -> Self {
         Self {
             label: CString::new(label)
                 .unwrap_or_else(|_| panic!("Label string has internal null bytes: {}", label)),
+            flags
         }
+    }
+
+    pub fn flags(mut self, flags: LineFlags) -> Self {
+        self.flags = flags;
+        self
     }
 
     /// Plot a line. Use this in closures passed to [`Plot::build()`](struct.Plot.html#method.build)
@@ -35,16 +60,15 @@ impl PlotLine {
             return;
         }
         unsafe {
-            /* 
-            sys::ImPlot_PlotLinedoublePtrdoublePtr(
+            sys::ImPlot_PlotLine_doublePtrdoublePtr(
                 self.label.as_ptr() as *const c_char,
                 x.as_ptr(),
                 y.as_ptr(),
                 x.len().min(y.len()) as i32, // "as" casts saturate as of Rust 1.45. This is safe here.
+               self.flags.bits() as sys::ImPlotLineFlags_, 
                 0,                           // No offset
                 std::mem::size_of::<f64>() as i32, // Stride, set to one f64 for the standard use case
             );
-            */
         }
     }
 }
@@ -53,6 +77,7 @@ impl PlotLine {
 pub struct PlotStairs {
     /// Label to show in the legend for this line
     label: CString,
+    flags: StairsFlags
 }
 
 impl PlotStairs {
@@ -61,10 +86,24 @@ impl PlotStairs {
     /// # Panics
     /// Will panic if the label string contains internal null bytes.
     pub fn new(label: &str) -> Self {
+        Self::new_with_flags(label, StairsFlags::empty()) 
+    }
+
+    /// Create a new line to be plotted. Does not draw anything yet.
+    ///
+    /// # Panics
+    /// Will panic if the label string contains internal null bytes.
+    pub fn new_with_flags(label: &str, flags: StairsFlags) -> Self {
         Self {
             label: CString::new(label)
                 .unwrap_or_else(|_| panic!("Label string has internal null bytes: {}", label)),
+            flags
         }
+    }
+
+    pub fn flags(mut self, flags: StairsFlags) -> Self {
+        self.flags = flags;
+        self
     }
 
     /// Plot a stairs style line. Use this in closures passed to
@@ -75,16 +114,15 @@ impl PlotStairs {
             return;
         }
         unsafe {
-            /* 
-            sys::ImPlot_PlotStairsdoublePtrdoublePtr(
+            sys::ImPlot_PlotStairs_doublePtrdoublePtr(
                 self.label.as_ptr() as *const c_char,
                 x.as_ptr(),
                 y.as_ptr(),
                 x.len().min(y.len()) as i32, // "as" casts saturate as of Rust 1.45. This is safe here.
+                self.flags.bits() as sys::ImPlotStairsFlags_,
                 0,                           // No offset
                 std::mem::size_of::<f64>() as i32, // Stride, set to one f64 for the standard use case
             );
-            */
         }
     }
 }
@@ -96,15 +134,26 @@ pub struct PlotScatter {
     /// # Panics
     /// Will panic if the label string contains internal null bytes.
     label: CString,
+    flags: ScatterFlags
 }
 
 impl PlotScatter {
     /// Create a new scatter plot to be shown. Does not draw anything yet.
     pub fn new(label: &str) -> Self {
+        Self::new_with_flags(label, ScatterFlags::empty())
+    }
+
+    pub fn new_with_flags(label: &str, flags: ScatterFlags) -> Self {
         Self {
             label: CString::new(label)
                 .unwrap_or_else(|_| panic!("Label string has internal null bytes: {}", label)),
+            flags
         }
+    }
+
+    pub fn flags(mut self, flags: ScatterFlags) -> Self {
+        self.flags = flags;
+        self
     }
 
     /// Draw a previously-created scatter plot. Use this in closures passed to
@@ -115,16 +164,15 @@ impl PlotScatter {
             return;
         }
         unsafe {
-            /* 
-            sys::ImPlot_PlotScatterdoublePtrdoublePtr(
+            sys::ImPlot_PlotScatter_doublePtrdoublePtr(
                 self.label.as_ptr() as *const c_char,
                 x.as_ptr(),
                 y.as_ptr(),
                 x.len().min(y.len()) as i32, // "as" casts saturate as of Rust 1.45. This is safe here.
+                self.flags.bits() as sys::ImPlotScatterFlags_,
                 0,                           // No offset
                 std::mem::size_of::<f64>() as i32, // Stride, set to one f64 for the standard use case
             );
-            */
         }
     }
 }
@@ -136,9 +184,7 @@ pub struct PlotBars {
 
     /// Width of the bars, in plot coordinate terms
     bar_width: f64,
-
-    /// Horizontal bar mode
-    horizontal_bars: bool,
+    flags: BarsFlags
 }
 
 impl PlotBars {
@@ -148,11 +194,15 @@ impl PlotBars {
     /// # Panics
     /// Will panic if the label string contains internal null bytes.
     pub fn new(label: &str) -> Self {
+        Self::new_with_flags(label, BarsFlags::empty()) 
+    }
+
+    pub fn new_with_flags(label: &str, flags: BarsFlags) -> Self {
         Self {
             label: CString::new(label)
                 .unwrap_or_else(|_| panic!("Label string has internal null bytes: {}", label)),
             bar_width: 0.67, // Default value taken from C++ implot
-            horizontal_bars: false,
+            flags
         }
     }
 
@@ -162,9 +212,8 @@ impl PlotBars {
         self
     }
 
-    /// Set the bars to be horizontal (default is vertical)
-    pub fn with_horizontal_bars(mut self) -> Self {
-        self.horizontal_bars = true;
+    pub fn flags(mut self, flags: BarsFlags) -> Self {
+        self.flags = flags;
         self
     }
 
@@ -183,46 +232,25 @@ impl PlotBars {
             // are the same, so they are unified here. The x and y values have different
             // meanings though, hence the swapping around before they are passed to the
             // plotting function.
-            /* 
-            let (plot_function, x, y);
-            if self.horizontal_bars {
-                plot_function = sys::ImPlot_PlotBarsHdoublePtrdoublePtr
-                    as unsafe extern "C" fn(
-                        *const c_char,
-                        *const f64,
-                        *const f64,
-                        i32,
-                        f64,
-                        i32,
-                        i32,
-                    );
+            let (x, y);
+            if self.flags.contains(BarsFlags::HORIZONTAL) {
                 x = bar_values;
                 y = axis_positions;
             } else {
-                plot_function = sys::ImPlot_PlotBarsdoublePtrdoublePtr
-                    as unsafe extern "C" fn(
-                        *const c_char,
-                        *const f64,
-                        *const f64,
-                        i32,
-                        f64,
-                        i32,
-                        i32,
-                    );
                 x = axis_positions;
                 y = bar_values;
             };
 
-            plot_function(
+            sys::ImPlot_PlotBars_doublePtrdoublePtr(
                 self.label.as_ptr() as *const c_char,
                 x.as_ptr(),
                 y.as_ptr(),
                 number_of_points as i32, // "as" casts saturate as of Rust 1.45. This is safe here.
                 self.bar_width,
+                self.flags.bits() as sys::ImPlotBarsFlags_,
                 0,                                 // No offset
                 std::mem::size_of::<f64>() as i32, // Stride, set to one f64 for the standard use case
             );
-            */
         }
     }
 }
@@ -239,6 +267,7 @@ pub struct PlotText {
     /// Y component of the pixel offset to be used. Will be used independently of the actual plot
     /// scaling. Defaults to 0.
     pixel_offset_y: f32,
+    flags: TextFlags
 }
 
 impl PlotText {
@@ -247,12 +276,22 @@ impl PlotText {
     /// # Panics
     /// Will panic if the label string contains internal null bytes.
     pub fn new(label: &str) -> Self {
+        Self::new_with_flags(label, TextFlags::empty())
+    }
+
+    pub fn new_with_flags(label: &str, flags: TextFlags) -> Self {
         Self {
             label: CString::new(label)
                 .unwrap_or_else(|_| panic!("Label string has internal null bytes: {}", label)),
             pixel_offset_x: 0.0,
             pixel_offset_y: 0.0,
+            flags
         }
+    }
+
+    pub fn flags(mut self, flags: TextFlags) -> Self {
+        self.flags = flags;
+        self
     }
 
     /// Add a pixel offset to the text to be plotted. This offset will be independent of the
@@ -265,25 +304,23 @@ impl PlotText {
 
     /// Draw the text label in the plot at the given position, optionally vertically. Use this in
     /// closures passed to [`Plot::build()`](struct.Plot.html#method.build)
-    pub fn plot(&self, x: f64, y: f64, vertical: bool) {
+    pub fn plot(&self, x: f64, y: f64) {
         // If there is nothing to show, don't do anything
         if self.label.as_bytes().is_empty() {
             return;
         }
 
         unsafe {
-            /* 
             sys::ImPlot_PlotText(
                 self.label.as_ptr() as *const c_char,
                 x,
                 y,
-                vertical,
                 sys::ImVec2 {
                     x: self.pixel_offset_x,
                     y: self.pixel_offset_y,
                 },
+                self.flags.bits() as sys::ImPlotTextFlags_,
             );
-            */
         }
     }
 }
@@ -308,6 +345,7 @@ pub struct PlotHeatmap {
 
     /// Upper right point for the bounding rectangle. This is called `bounds_max` in the C++ code.
     drawarea_upper_right: ImPlotPoint,
+    flags: HeatmapFlags
 }
 
 impl PlotHeatmap {
@@ -316,6 +354,10 @@ impl PlotHeatmap {
     /// `None`, which is interpreted as "automatically make the scale fit the data". Does not draw
     /// anything yet.
     pub fn new(label: &str) -> Self {
+        Self::new_with_flags(label, HeatmapFlags::empty())
+    }
+
+    pub fn new_with_flags(label: &str, flags: HeatmapFlags) -> Self {
         Self {
             label: CString::new(label)
                 .unwrap_or_else(|_| panic!("Label string has internal null bytes: {}", label)),
@@ -323,7 +365,13 @@ impl PlotHeatmap {
             label_format: Some(CString::new("%.1f").unwrap()),
             drawarea_lower_left: ImPlotPoint { X: 0.0, Y: 0.0 },
             drawarea_upper_right: ImPlotPoint { X: 1.0, Y: 1.0 },
+            flags
         }
+    }
+
+    pub fn flags(mut self, flags: HeatmapFlags) -> Self {
+        self.flags = flags;
+        self
     }
 
     /// Specify the scale for the shown colors by minimum and maximum value.
@@ -374,8 +422,7 @@ impl PlotHeatmap {
         });
 
         unsafe {
-            /* 
-            sys::ImPlot_PlotHeatmapdoublePtr(
+            sys::ImPlot_PlotHeatmap_doublePtr(
                 self.label.as_ptr() as *const c_char,
                 values.as_ptr(),
                 number_of_rows as i32, // Not sure why C++ code uses a signed value here
@@ -391,8 +438,8 @@ impl PlotHeatmap {
                 },
                 self.drawarea_lower_left,
                 self.drawarea_upper_right,
+                self.flags.bits() as sys::ImPlotHeatmapFlags_
             );
-            */
         }
     }
 }
@@ -404,16 +451,22 @@ pub struct PlotStems {
 
     /// Reference value for the y value, which the stems are "with respect to"
     reference_y: f64,
+    flags: StemsFlags
 }
 
 impl PlotStems {
     /// Create a new stem plot to be shown. Does not draw anything by itself, call
     /// [`PlotStems::plot`] on the struct for that.
     pub fn new(label: &str) -> Self {
+        Self::new_with_flags(label, StemsFlags::empty())
+    }
+
+    pub fn new_with_flags(label: &str, flags: StemsFlags) -> Self {
         Self {
             label: CString::new(label)
                 .unwrap_or_else(|_| panic!("Label string has internal null bytes: {}", label)),
             reference_y: 0.0, // Default value taken from C++ implot
+            flags
         }
     }
 
@@ -433,17 +486,16 @@ impl PlotStems {
             return;
         }
         unsafe {
-            /* 
-            sys::ImPlot_PlotStemsdoublePtrdoublePtr(
+            sys::ImPlot_PlotStems_doublePtrdoublePtr(
                 self.label.as_ptr() as *const c_char,
                 axis_positions.as_ptr(),
                 stem_values.as_ptr(),
                 number_of_points as i32, // "as" casts saturate as of Rust 1.45. This is safe here.
                 self.reference_y,
+                self.flags.bits() as sys::ImPlotStemsFlags_,
                 0,                                 // No offset
                 std::mem::size_of::<f64>() as i32, // Stride, set to one f64 for the standard use case
             );
-            */
         }
     }
 }

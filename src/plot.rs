@@ -2,14 +2,26 @@
 //!
 //! This module defines the `Plot` struct, which is used to create a 2D plot that will
 //! contain all other objects that can be created using this library.
-use crate::{Context, PlotLocation, PlotUi, YAxisChoice, NUMBER_OF_Y_AXES};
+use crate::{
+    Context, 
+    PlotLocation, 
+    PlotUi, 
+    YAxisChoice, 
+    NUMBER_OF_Y_AXES
+};
 use bitflags::bitflags;
 pub use imgui::Condition;
 use implot_sys as sys;
 use std::ffi::CString;
 use std::os::raw::c_char;
-use std::{cell::RefCell, rc::Rc};
-pub use sys::{ImPlotRect, ImPlotPoint, ImPlotRange, ImVec2, ImVec4};
+use std::{
+    cell::RefCell, 
+    rc::Rc
+};
+pub use sys::{
+    ImPlotRange,
+    ImVec2,
+};
 
 const DEFAULT_PLOT_SIZE_X: f32 = 400.0;
 const DEFAULT_PLOT_SIZE_Y: f32 = 400.0;
@@ -35,27 +47,6 @@ bitflags! {
         /// The user will not be able to box-select with right-mouse
         const NO_BOX_SELECT = sys::ImPlotFlags__ImPlotFlags_NoBoxSelect as u32;
         /// The mouse position, in plot coordinates, will not be displayed
-        /* 
-        const NO_MOUSE_POSITION = sys::ImPlotFlags__ImPlotFlags_NoMousePos as u32;
-        /// Plot items will not be highlighted when their legend entry is hovered
-        const NO_HIGHLIGHT = sys::ImPlotFlags__ImPlotFlags_NoHighlight as u32;
-        
-        /// A child window region will not be used to capture mouse scroll (can boost performance
-        /// for single ImGui window applications)
-        const NO_CHILD = sys::ImPlotFlags__ImPlotFlags_NoChild as u32;
-        /// Use an aspect ratio of 1:1 for the plot
-        const AXIS_EQUAL = sys::ImPlotFlags__ImPlotFlags_Equal as u32;
-        /// Enable a 2nd y axis
-        const Y_AXIS_2 = sys::ImPlotFlags__ImPlotFlags_YAxis2 as u32;
-        /// Enable a 3nd y axis
-        const Y_AXIS_3 = sys::ImPlotFlags__ImPlotFlags_YAxis3 as u32;
-        /// The user will be able to draw query rects with middle-mouse
-        const QUERY = sys::ImPlotFlags__ImPlotFlags_Query as u32;
-        /// The default mouse cursor will be replaced with a crosshair when hovered
-        const CROSSHAIRS = sys::ImPlotFlags__ImPlotFlags_Crosshairs as u32;
-        /// Plot data outside the plot area will be culled from rendering
-        const ANTIALIASED = sys::ImPlotFlags__ImPlotFlags_AntiAliased as u32;
-        */
         /// the ImGui frame will not be rendered
         const NO_FRAME = sys::ImPlotFlags__ImPlotFlags_NoFrame as u32;
         /// x and y axes pairs will be constrained to have the same units/pixel
@@ -103,6 +94,81 @@ bitflags! {
         const LOCK = sys::ImPlotAxisFlags__ImPlotAxisFlags_Lock as u32;
         const NO_DECORATIONS = sys::ImPlotAxisFlags__ImPlotAxisFlags_NoDecorations as u32;
         const AUX_DEFAULT = sys::ImPlotAxisFlags__ImPlotAxisFlags_AuxDefault as u32;
+    }
+}
+
+bitflags! {
+    #[repr(transparent)]
+    pub struct LineFlags: u32 {
+        const NONE = sys::ImPlotLineFlags__ImPlotLineFlags_None        as u32;       // default
+        const SEGMENTS = sys::ImPlotLineFlags__ImPlotLineFlags_Segments    as u32; // a line segment will be rendered from every two consecutive points
+        const LOOP = sys::ImPlotLineFlags__ImPlotLineFlags_Loop        as u32; // the last and first point will be connected to form a closed loop
+        const SKIP_NAN = sys::ImPlotLineFlags__ImPlotLineFlags_SkipNaN     as u32; // NaNs values will be skipped instead of rendered as missing data
+        const NO_CLIP = sys::ImPlotLineFlags__ImPlotLineFlags_NoClip      as u32; // markers (if displayed) on the edge of a plot will not be clipped
+        const SHADED = sys::ImPlotLineFlags__ImPlotLineFlags_Shaded      as u32; // a filled region between the line and horizontal origin will be rendered; use PlotShaded for more advanced cases
+    }
+}
+
+bitflags! {
+    #[repr(transparent)]
+    pub struct StairsFlags: u32 {
+        const NONE = sys::ImPlotStairsFlags__ImPlotStairsFlags_None     as u32;       // default
+        const PRE_STEP = sys::ImPlotStairsFlags__ImPlotStairsFlags_PreStep  as u32; // the y value is continued constantly to the left from every x position, i.e. the interval (x[i-1], x[i]] has the value y[i]
+        const SHADED = sys::ImPlotStairsFlags__ImPlotStairsFlags_Shaded   as u32; // a filled region between the stairs and horizontal origin will be rendered; use PlotShaded for more advanced cases
+    }
+}
+
+bitflags! {
+    #[repr(transparent)]
+    pub struct ScatterFlags: u32 {
+        const NONE = sys::ImPlotScatterFlags__ImPlotScatterFlags_None   as u32;       // default
+        const NO_CLIP = sys::ImPlotScatterFlags__ImPlotScatterFlags_NoClip as u32; // markers on the edge of a plot will not be clipped
+    }
+}
+
+bitflags! {
+    #[repr(transparent)]
+    pub struct BarsFlags: u32 {
+        const NONE = sys::ImPlotBarsFlags__ImPlotBarsFlags_None   as u32;       // default
+        const HORIZONTAL = sys::ImPlotBarsFlags__ImPlotBarsFlags_Horizontal as u32; // markers on the edge of a plot will not be clipped
+    }
+}
+
+bitflags! {
+    #[repr(transparent)]
+    pub struct TextFlags: u32 {
+        const NONE = sys::ImPlotTextFlags__ImPlotTextFlags_None   as u32;       // default
+        const VERTICAL = sys::ImPlotTextFlags__ImPlotTextFlags_Vertical as u32; // text will be rendered vertically
+    }
+}
+
+bitflags! {
+    #[repr(transparent)]
+    pub struct HeatmapFlags: u32 {
+        const NONE = sys::ImPlotHeatmapFlags__ImPlotHeatmapFlags_None   as u32;       // default
+        const COL_MAJOR = sys::ImPlotHeatmapFlags__ImPlotHeatmapFlags_ColMajor as u32; // data will be read in column major order
+    }
+}
+
+bitflags! {
+    #[repr(transparent)]
+    pub struct StemsFlags: u32 {
+        const NONE = sys::ImPlotStemsFlags__ImPlotStemsFlags_None   as u32;       // default
+        const HORIZONTAL = sys::ImPlotStemsFlags__ImPlotStemsFlags_Horizontal as u32; // lines will be rendered horizontally on the current y-axis
+    }
+}
+
+bitflags! {
+    #[repr(transparent)]
+    pub struct LegendFlags: u32 {
+        const NONE = sys::ImPlotLegendFlags__ImPlotLegendFlags_None            as u32;      // default
+        const NO_BUTTONS = sys::ImPlotLegendFlags__ImPlotLegendFlags_NoButtons       as u32; // legend icons will not function as hide/show buttons
+        const NO_HIGHLIGHT_ITEM = sys::ImPlotLegendFlags__ImPlotLegendFlags_NoHighlightItem as u32; // plot items will not be highlighted when their legend entry is hovered
+        const NO_HIGHLIGHT_AXIS = sys::ImPlotLegendFlags__ImPlotLegendFlags_NoHighlightAxis as u32; // axes will not be highlighted when legend entries are hovered (only relevant if x/y-axis count > 1)
+        const NO_MENUS = sys::ImPlotLegendFlags__ImPlotLegendFlags_NoMenus         as u32; // the user will not be able to open context menus with right-click
+        const OUTSIDE = sys::ImPlotLegendFlags__ImPlotLegendFlags_Outside         as u32; // legend will be rendered outside of the plot area
+        const HORIZONTAL = sys::ImPlotLegendFlags__ImPlotLegendFlags_Horizontal      as u32; // legend entries will be displayed horizontally
+        const SORT = sys::ImPlotLegendFlags__ImPlotLegendFlags_Sort            as u32; // legend entries will be displayed in alphabetical order
     }
 }
 
@@ -174,7 +240,7 @@ pub struct Plot {
     /// is set, implot's defaults are used. Note also  that if these are set, then implot's
     /// interactive legend configuration does not work because it is overridden by the settings
     /// here.
-    legend_configuration: Option<(PlotLocation, bool)>,
+    legend_configuration: Option<(PlotLocation, LegendFlags)>,
     /// Flags relating to the plot TODO(4bb4) make those into bitflags
     plot_flags: PlotFlags,
     /// Flags relating to the X axis of the plot TODO(4bb4) make those into bitflags
@@ -451,20 +517,17 @@ impl Plot {
         self
     }
 
-    /// Set the legend location, orientation and whether it is to be drawn outside the plot
-    /* 
+    /// Set the legend location and configuration flags
     #[rustversion::attr(since(1.48), doc(alias = "SetLegendLocation"))]
     #[inline]
     pub fn with_legend_location(
         mut self,
         location: &PlotLocation,
-        orientation: &PlotOrientation,
-        outside: bool,
+        flags: LegendFlags
     ) -> Self {
-        self.legend_configuration = Some((*location, *orientation, outside));
+        self.legend_configuration = Some((*location, flags));
         self
     }
-    */
 
     /// Internal helper function to set axis limits in case they are specified.
     fn maybe_set_axis_limits(&self) {
@@ -625,26 +688,18 @@ impl Plot {
     pub fn begin(&self, plot_ui: &PlotUi) -> Option<PlotToken> {
         self.maybe_set_axis_limits();
         self.maybe_set_tick_labels();
-        /* 
         let should_render = unsafe {
-            let size_vec: ImVec2 = ImVec2 {
-                x: self.size[0],
-                y: self.size[1],
-            };
-            sys::ImPlot_BeginPlot(
-                self.title.as_ptr(),
-                self.x_label.as_ptr(),
-                self.y_label.as_ptr(),
-                size_vec,
-                self.plot_flags,
-                self.x_flags,
-                self.y_flags[0],
-                self.y_flags[1],
-                self.y_flags[2],
-            )
+            let size_vec: ImVec2 = ImVec2 { x: self.size[0], y: self.size[1], };
+            sys::ImPlot_BeginPlot( self.title.as_ptr(),  size_vec,  self.plot_flags.bits() as i32 )
         };
 
         if should_render {
+            unsafe {
+                sys::ImPlot_SetupAxis(crate::Axis::X1 as i32, self.x_label.as_ptr(), self.x_flags.bits() as i32);
+                sys::ImPlot_SetupAxis(crate::Axis::Y1 as i32, self.y_label.as_ptr(), self.y_flags[0].bits() as i32);
+                sys::ImPlot_SetupAxis(crate::Axis::Y2 as i32, self.y_label.as_ptr(), self.y_flags[1].bits() as i32);
+                sys::ImPlot_SetupAxis(crate::Axis::Y3 as i32, self.y_label.as_ptr(), self.y_flags[2].bits() as i32);
+            }
             // Configure legend location, if one was set. This has to be called between begin() and
             // end(), but since only the last call to it actually affects the outcome, I'm adding
             // it here instead of as a freestanding function. If this is too restrictive (for
@@ -654,11 +709,8 @@ impl Plot {
                 // We introduce variables with typechecks here to safeguard against accidental
                 // changes in order in the config tuple
                 let location: PlotLocation = legend_config.0;
-                let orientation: PlotOrientation = legend_config.1;
-                let outside_plot: bool = legend_config.2;
-                unsafe {
-                    sys::ImPlot_SetLegendLocation(location as i32, orientation as i32, outside_plot)
-                }
+                let flags: LegendFlags = legend_config.1;
+                unsafe { sys::ImPlot_SetupLegend(location as i32, flags.bits() as i32) }
             }
 
             Some(PlotToken {
@@ -670,8 +722,6 @@ impl Plot {
             // called if we don't render. This is more like an imgui popup modal.
             None
         }
-        */
-        None
     }
 
     /// Creates a window and runs a closure to construct the contents. This internally
