@@ -34,26 +34,14 @@ mod plot_elements;
 // the original C++ header for things to work properly.
 const IMPLOT_AUTO: i32 = -1;
 
+// Number of X axes, this is used in a bunch of places for storing things like settings.
+const NUMBER_OF_X_AXES: usize = 3;
+
 // Number of Y axes, this is used in a bunch of places for storing things like settings.
-// If this changes, also change the YAxisChoice enum.
 const NUMBER_OF_Y_AXES: usize = 3;
 
-/// Choice of Y axis. This an enum instead of just an integer so as to make it impossible
-/// to select a Y axis that is not present - this makes it easier to avoid `Result`-type
-/// return values on functions that could otherwise not really fail.
-// Implementation note: This enum is converted straight to an usize index in a few places
-// so we can store data about individual axes in arrays, so this pretty much should stay
-// just a mapping of words to numbers.
-#[rustversion::attr(since(1.48), doc(alias = "ImPlotYAxis"))]
-#[derive(Clone)]
-#[repr(u32)]
-pub enum YAxisChoice {
-    First = sys::ImAxis__ImAxis_Y1 as u32,
-    Second = sys::ImAxis__ImAxis_Y2 as u32,
-    Third = sys::ImAxis__ImAxis_Y3 as u32,
-}
-
-#[derive(Debug, Clone)]
+/// Choice of axis (X axis, followed by Y axis).
+#[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
 #[repr(u32)]
 pub enum Axis {
     X1 = sys::ImAxis__ImAxis_X1 as u32,
@@ -64,19 +52,51 @@ pub enum Axis {
     Y3 = sys::ImAxis__ImAxis_Y3 as u32,
 }
 
-/// Turn an Option<YAxisChoice> into an i32. Picks IMPLOT_AUTO for None.
+/// Turn an Option<Axis> into an i32. Picks IMPLOT_AUTO for None.
 #[rustversion::attr(since(1.48), doc(alias = "IMPLOT_AUTO"))]
-fn y_axis_choice_option_to_i32(y_axis_choice: Option<YAxisChoice>) -> i32 {
-    match y_axis_choice {
-        Some(choice) => choice as i32,
-        None => IMPLOT_AUTO,
+fn axis_option_to_i32(choice: Option<Axis>) -> i32 {
+    choice.map_or(IMPLOT_AUTO, |v| v as i32)
+}
+
+fn get_x_axis(axis: Axis) -> Option<Axis> {
+    match axis {
+        a if a < Axis::Y1 => Some(axis),
+        _ => None
     }
 }
 
-fn axis_option_to_i32(axis: Option<Axis>) -> i32 {
+fn get_x_axis_index(axis: Axis) -> Option<usize> {
     match axis {
-        Some(a) => a as i32,
-        None => IMPLOT_AUTO,
+        a if a < Axis::Y1 => Some(axis as usize),
+        _ => None
+    }
+}
+
+fn get_y_axis(axis: Axis) -> Option<Axis> {
+    match axis {
+        a if a > Axis::X3 => Some(axis),
+        _ => None
+    }
+}
+
+fn get_y_axis_index(axis: Axis) -> Option<usize> {
+    match axis {
+        a if a > Axis::X3 => Some(axis as usize - NUMBER_OF_X_AXES),
+        _ => None
+    }
+}
+
+fn get_x_axis_from_index(index: usize) -> Option<Axis> {
+    match index {
+        v if v < NUMBER_OF_X_AXES => Some(unsafe { std::mem::transmute(index as u32) }),
+        _ => None
+    }
+}
+
+fn get_y_axis_from_index(index: usize) -> Option<Axis> {
+    match index {
+        v if v < NUMBER_OF_Y_AXES => Some(unsafe { std::mem::transmute((index + NUMBER_OF_X_AXES) as u32) }),
+        _ => None
     }
 }
 
@@ -585,18 +605,12 @@ pub fn set_axis(axis: Axis) {
     }
 }
 
-/// Returns true if the XAxis plot area in the current plot is hovered.
-#[rustversion::attr(since(1.48), doc(alias = "IsPlotXAxisHovered"))]
-pub fn is_plot_x_axis_hovered() -> bool {
-    unsafe { sys::ImPlot_IsAxisHovered(Axis::X1 as i32) }
-}
-
-/// Returns true if the Y axis area of the given Y axis choice in the current plot is hovered. If
-/// `None` is the Y axis choice, that means the most recently selected Y axis is chosen.
-#[rustversion::attr(since(1.48), doc(alias = "IsPlotYAxisHovered"))]
-pub fn is_plot_y_axis_hovered(y_axis_choice: Option<YAxisChoice>) -> bool {
-    let y_axis_choice_i32 = y_axis_choice_option_to_i32(y_axis_choice);
-    unsafe { sys::ImPlot_IsAxisHovered(y_axis_choice_i32) }
+/// Returns true if the axis area of the given axis choice in the current plot is hovered. If
+/// `None` is the axis choice, that means the most recently selected axis is chosen.
+#[rustversion::attr(since(1.48), doc(alias = "IsPlotAxisHovered"))]
+pub fn is_plot_axis_hovered(axis_choice: Option<Axis>) -> bool {
+    let axis_choice_i32 = axis_option_to_i32(axis_choice);
+    unsafe { sys::ImPlot_IsAxisHovered(axis_choice_i32) }
 }
 
 /// Returns true if the given item in the legend of the current plot is hovered.

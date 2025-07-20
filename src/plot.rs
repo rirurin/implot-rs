@@ -2,13 +2,7 @@
 //!
 //! This module defines the `Plot` struct, which is used to create a 2D plot that will
 //! contain all other objects that can be created using this library.
-use crate::{
-    Context, 
-    PlotLocation, 
-    PlotUi, 
-    YAxisChoice, 
-    NUMBER_OF_Y_AXES
-};
+use crate::{get_x_axis_from_index, get_x_axis_index, get_y_axis_from_index, get_y_axis_index, Axis, Context, PlotLocation, PlotUi, NUMBER_OF_X_AXES, NUMBER_OF_Y_AXES};
 use bitflags::bitflags;
 pub use imgui::Condition;
 use implot_sys as sys;
@@ -210,20 +204,20 @@ pub struct Plot {
     /// afterwards, and this ensures the CString itself will stay alive long enough for the plot.
     y_label: CString,
     /// X axis limits, if present
-    x_limits: Option<AxisLimitSpecification>,
+    x_limits: [Option<AxisLimitSpecification>; NUMBER_OF_X_AXES],
     /// Y axis limits, if present
     y_limits: [Option<AxisLimitSpecification>; NUMBER_OF_Y_AXES],
     /// Positions for custom X axis ticks, if any
-    x_tick_positions: Option<Vec<f64>>,
+    x_tick_positions: [Option<Vec<f64>>; NUMBER_OF_X_AXES],
     /// Labels for custom X axis ticks, if any. I'd prefer to store these together
     /// with the positions in one vector of an algebraic data type, but this would mean extra
     /// copies when it comes time to draw the plot because the C++ library expects separate lists.
     /// The data is stored as CStrings because those are null-terminated, and since we have to
     /// convert to null-terminated data anyway, we may as well do that directly instead of cloning
     /// Strings and converting them afterwards.
-    x_tick_labels: Option<Vec<CString>>,
+    x_tick_labels: [Option<Vec<CString>>; NUMBER_OF_X_AXES],
     /// Whether to also show the default X ticks when showing custom ticks or not
-    show_x_default_ticks: bool,
+    show_x_default_ticks: [bool; NUMBER_OF_X_AXES],
     /// Positions for custom Y axis ticks, if any
     y_tick_positions: [Option<Vec<f64>>; NUMBER_OF_Y_AXES],
     /// Labels for custom Y axis ticks, if any. I'd prefer to store these together
@@ -244,7 +238,7 @@ pub struct Plot {
     /// Flags relating to the plot TODO(4bb4) make those into bitflags
     plot_flags: PlotFlags,
     /// Flags relating to the X axis of the plot TODO(4bb4) make those into bitflags
-    x_flags: AxisFlags,
+    x_flags: [AxisFlags; NUMBER_OF_X_AXES],
     /// Flags relating to the each of the Y axes of the plot TODO(4bb4) make those into bitflags
     y_flags: [AxisFlags; NUMBER_OF_Y_AXES],
 }
@@ -268,17 +262,17 @@ impl Plot {
             size: [DEFAULT_PLOT_SIZE_X, DEFAULT_PLOT_SIZE_Y],
             x_label: CString::new("").unwrap(),
             y_label: CString::new("").unwrap(),
-            x_limits: None,
+            x_limits: Default::default(),
             y_limits: Default::default(),
-            x_tick_positions: None,
-            x_tick_labels: None,
-            show_x_default_ticks: false,
+            x_tick_positions: [POS_NONE; NUMBER_OF_X_AXES],
+            x_tick_labels: [TICK_NONE; NUMBER_OF_X_AXES],
+            show_x_default_ticks: [false; NUMBER_OF_X_AXES],
             y_tick_positions: [POS_NONE; NUMBER_OF_Y_AXES],
             y_tick_labels: [TICK_NONE; NUMBER_OF_Y_AXES],
             show_y_default_ticks: [false; NUMBER_OF_Y_AXES],
             legend_configuration: None,
             plot_flags: PlotFlags::empty(),
-            x_flags: AxisFlags::empty(),
+            x_flags: [AxisFlags::empty(); NUMBER_OF_X_AXES],
             y_flags: [AxisFlags::empty(); NUMBER_OF_Y_AXES],
         }
     }
@@ -318,20 +312,81 @@ impl Plot {
     /// Note: This conflicts with `linked_x_limits`, whichever is called last on plot construction
     /// takes effect.
     #[inline]
-    pub fn x_limits<L: Into<ImPlotRange>>(mut self, limits: L, condition: Condition) -> Self {
-        self.x_limits = Some(AxisLimitSpecification::Single(limits.into(), condition));
+    pub fn x_limits<L: Into<ImPlotRange>>(
+        mut self,
+        limits: L,
+        condition: Condition,
+        axis: Axis
+    ) -> Self {
+        if let Some(axis_index) = get_x_axis_index(axis) {
+            self.x_limits[axis_index] = Some(AxisLimitSpecification::Single(limits.into(), condition));
+        }
         self
     }
 
+    /// Convenience function to directly set the X limits for the first X axis. To programmatically
+    /// (or on demand) decide which axis to set limits for, use [`Plot::x_limits`]
+    #[inline]
+    pub fn x1_limits<L: Into<ImPlotRange>>(self, limits: L, condition: Condition) -> Self {
+        self.x_limits(limits, condition, Axis::X1)
+    }
+
+    /// Convenience function to directly set the X limits for the secondXY axis. To
+    /// programmatically (or on demand) decide which axis to set limits for, use [`Plot::x_limits`]
+    #[inline]
+    pub fn x2_limits<L: Into<ImPlotRange>>(self, limits: L, condition: Condition) -> Self {
+        self.x_limits(limits, condition, Axis::X2)
+    }
+
+    /// Convenience function to directly set the X limits for the third X axis. To programmatically
+    /// (or on demand) decide which axis to set limits for, use [`Plot::x_limits`]
+    #[inline]
+    pub fn x3_limits<L: Into<ImPlotRange>>(self, limits: L, condition: Condition) -> Self {
+        self.x_limits(limits, condition, Axis::X3)
+    }
+
     /// Set linked x limits for this plot. Pass clones of the same `Rc` into other plots
-    /// to link their limits with the same values.
+    /// to link their limits with the same values. Call multiple times with different
+    /// `axis` values to set for multiple axes, or use the convenience methods such as
+    /// [`Plot::x1_limits`]. This function requires that the axis value refers to some X axis
+    /// otherwise this will be a no-op
     ///
     /// Note: This conflicts with `x_limits`, whichever is called last on plot construction takes
     /// effect.
     #[inline]
-    pub fn linked_x_limits(mut self, limits: Rc<RefCell<ImPlotRange>>) -> Self {
-        self.x_limits = Some(AxisLimitSpecification::Linked(limits));
+    pub fn linked_x_limits(
+        mut self,
+        limits: Rc<RefCell<ImPlotRange>>,
+        axis: Axis
+    ) -> Self {
+        if let Some(axis_index) = get_x_axis_index(axis) {
+            self.x_limits[axis_index] = Some(AxisLimitSpecification::Linked(limits));
+        }
         self
+    }
+
+    /// Convenience function to directly set linked X limits for the first X axis. To
+    /// programmatically (or on demand) decide which axis to set limits for, use
+    /// [`Plot::linked_x_limits`].
+    #[inline]
+    pub fn linked_x1_limits(self, limits: Rc<RefCell<ImPlotRange>>) -> Self {
+        self.linked_x_limits(limits, Axis::X1)
+    }
+
+    /// Convenience function to directly set linked X limits for the second X axis. To
+    /// programmatically (or on demand) decide which axis to set limits for, use
+    /// [`Plot::linked_x_limits`].
+    #[inline]
+    pub fn linked_x2_limits(self, limits: Rc<RefCell<ImPlotRange>>) -> Self {
+        self.linked_x_limits(limits, Axis::X2)
+    }
+
+    /// Convenience function to directly set linked X limits for the third X axis. To
+    /// programmatically (or on demand) decide which axis to set limits for, use
+    /// [`Plot::linked_x_limits`].
+    #[inline]
+    pub fn linked_x3_limits(self, limits: Rc<RefCell<ImPlotRange>>) -> Self {
+        self.linked_x_limits(limits, Axis::X3)
     }
 
     /// Set the Y limits of the plot for the given Y axis. Call multiple times with different
@@ -344,11 +399,12 @@ impl Plot {
     pub fn y_limits<L: Into<ImPlotRange>>(
         mut self,
         limits: L,
-        y_axis_choice: YAxisChoice,
         condition: Condition,
+        axis: Axis
     ) -> Self {
-        let axis_index = y_axis_choice as usize;
-        self.y_limits[axis_index] = Some(AxisLimitSpecification::Single(limits.into(), condition));
+        if let Some(axis_index) = get_y_axis_index(axis) {
+            self.y_limits[axis_index] = Some(AxisLimitSpecification::Single(limits.into(), condition));
+        }
         self
     }
 
@@ -356,27 +412,28 @@ impl Plot {
     /// (or on demand) decide which axis to set limits for, use [`Plot::y_limits`]
     #[inline]
     pub fn y1_limits<L: Into<ImPlotRange>>(self, limits: L, condition: Condition) -> Self {
-        self.y_limits(limits, YAxisChoice::First, condition)
+        self.y_limits(limits, condition, Axis::Y1)
     }
 
     /// Convenience function to directly set the Y limits for the second Y axis. To
     /// programmatically (or on demand) decide which axis to set limits for, use [`Plot::y_limits`]
     #[inline]
     pub fn y2_limits<L: Into<ImPlotRange>>(self, limits: L, condition: Condition) -> Self {
-        self.y_limits(limits, YAxisChoice::Second, condition)
+        self.y_limits(limits, condition, Axis::Y2)
     }
 
     /// Convenience function to directly set the Y limits for the third Y axis. To programmatically
     /// (or on demand) decide which axis to set limits for, use [`Plot::y_limits`]
     #[inline]
     pub fn y3_limits<L: Into<ImPlotRange>>(self, limits: L, condition: Condition) -> Self {
-        self.y_limits(limits, YAxisChoice::Third, condition)
+        self.y_limits(limits, condition, Axis::Y3)
     }
 
     /// Set linked Y limits of the plot for the given Y axis. Pass clones of the same `Rc` into
     /// other plots to link their limits with the same values. Call multiple times with different
-    /// `y_axis_choice` values to set for multiple axes, or use the convenience methods such as
-    /// [`Plot::y1_limits`].
+    /// `axis` values to set for multiple axes, or use the convenience methods such as
+    /// [`Plot::y1_limits`]. This function requires that the axis value refers to some Y axis
+    /// otherwise this will be a no-op
     ///
     /// Note: This conflicts with `y_limits`, whichever is called last on plot construction takes
     /// effect for a given axis.
@@ -384,10 +441,12 @@ impl Plot {
     pub fn linked_y_limits(
         mut self,
         limits: Rc<RefCell<ImPlotRange>>,
-        y_axis_choice: YAxisChoice,
+        axis: Axis,
     ) -> Self {
-        let axis_index = y_axis_choice as usize;
-        self.y_limits[axis_index] = Some(AxisLimitSpecification::Linked(limits));
+        if let Some(axis_index) = get_y_axis_index(axis) {
+            let axis_index = axis as usize - Axis::Y1 as usize;
+            self.y_limits[axis_index] = Some(AxisLimitSpecification::Linked(limits));
+        }
         self
     }
 
@@ -396,7 +455,7 @@ impl Plot {
     /// [`Plot::linked_y_limits`].
     #[inline]
     pub fn linked_y1_limits(self, limits: Rc<RefCell<ImPlotRange>>) -> Self {
-        self.linked_y_limits(limits, YAxisChoice::First)
+        self.linked_y_limits(limits, Axis::Y1)
     }
 
     /// Convenience function to directly set linked Y limits for the second Y axis. To
@@ -404,7 +463,7 @@ impl Plot {
     /// [`Plot::linked_y_limits`].
     #[inline]
     pub fn linked_y2_limits(self, limits: Rc<RefCell<ImPlotRange>>) -> Self {
-        self.linked_y_limits(limits, YAxisChoice::Second)
+        self.linked_y_limits(limits, Axis::Y2)
     }
 
     /// Convenience function to directly set linked Y limits for the third Y axis. To
@@ -412,16 +471,23 @@ impl Plot {
     /// [`Plot::linked_y_limits`].
     #[inline]
     pub fn linked_y3_limits(self, limits: Rc<RefCell<ImPlotRange>>) -> Self {
-        self.linked_y_limits(limits, YAxisChoice::Third)
+        self.linked_y_limits(limits, Axis::Y3)
     }
 
     /// Set X ticks without labels for the plot. The vector contains one label each in
     /// the form of a tuple `(label_position, label_string)`. The `show_default` setting
     /// determines whether the default ticks are also shown.
     #[inline]
-    pub fn x_ticks(mut self, ticks: &[f64], show_default: bool) -> Self {
-        self.x_tick_positions = Some(ticks.into());
-        self.show_x_default_ticks = show_default;
+    pub fn x_ticks(
+        mut self,
+        axis: Axis,
+        ticks: &[f64],
+        show_default: bool
+    ) -> Self {
+        if let Some(axis_index) = get_x_axis_index(axis) {
+            self.x_tick_positions[axis_index] = Some(ticks.into());
+            self.show_x_default_ticks[axis_index] = show_default;
+        }
         self
     }
 
@@ -431,13 +497,14 @@ impl Plot {
     #[inline]
     pub fn y_ticks(
         mut self,
-        y_axis_choice: YAxisChoice,
+        axis: Axis,
         ticks: &[f64],
         show_default: bool,
     ) -> Self {
-        let axis_index = y_axis_choice as usize;
-        self.y_tick_positions[axis_index] = Some(ticks.into());
-        self.show_y_default_ticks[axis_index] = show_default;
+        if let Some(axis_index) = get_y_axis_index(axis) {
+            self.y_tick_positions[axis_index] = Some(ticks.into());
+            self.show_y_default_ticks[axis_index] = show_default;
+        }
         self
     }
 
@@ -450,20 +517,23 @@ impl Plot {
     #[inline]
     pub fn x_ticks_with_labels(
         mut self,
+        axis: Axis,
         tick_labels: &[(f64, String)],
         show_default: bool,
     ) -> Self {
-        self.x_tick_positions = Some(tick_labels.iter().map(|x| x.0).collect());
-        self.x_tick_labels = Some(
-            tick_labels
-                .iter()
-                .map(|x| {
-                    CString::new(x.1.as_str())
-                        .unwrap_or_else(|_| panic!("String contains internal null bytes: {}", x.1))
-                })
-                .collect(),
-        );
-        self.show_x_default_ticks = show_default;
+        if let Some(axis_index) = get_x_axis_index(axis) {
+            self.x_tick_positions[axis_index] = Some(tick_labels.iter().map(|x| x.0).collect());
+            self.x_tick_labels[axis_index] = Some(
+                tick_labels
+                    .iter()
+                    .map(|x| {
+                        CString::new(x.1.as_str())
+                            .unwrap_or_else(|_| panic!("String contains internal null bytes: {}", x.1))
+                    })
+                    .collect(),
+            );
+            self.show_x_default_ticks[axis_index] = show_default;
+        }
         self
     }
 
@@ -476,22 +546,23 @@ impl Plot {
     #[inline]
     pub fn y_ticks_with_labels(
         mut self,
-        y_axis_choice: YAxisChoice,
+        axis: Axis,
         tick_labels: &[(f64, String)],
         show_default: bool,
     ) -> Self {
-        let axis_index = y_axis_choice as usize;
-        self.y_tick_positions[axis_index] = Some(tick_labels.iter().map(|x| x.0).collect());
-        self.y_tick_labels[axis_index] = Some(
-            tick_labels
-                .iter()
-                .map(|x| {
-                    CString::new(x.1.as_str())
-                        .unwrap_or_else(|_| panic!("String contains internal null bytes: {}", x.1))
-                })
-                .collect(),
-        );
-        self.show_y_default_ticks[axis_index] = show_default;
+        if let Some(axis_index) = get_y_axis_index(axis) {
+            self.y_tick_positions[axis_index] = Some(tick_labels.iter().map(|x| x.0).collect());
+            self.y_tick_labels[axis_index] = Some(
+                tick_labels
+                    .iter()
+                    .map(|x| {
+                        CString::new(x.1.as_str())
+                            .unwrap_or_else(|_| panic!("String contains internal null bytes: {}", x.1))
+                    })
+                    .collect(),
+            );
+            self.show_y_default_ticks[axis_index] = show_default;
+        }
         self
     }
 
@@ -504,16 +575,19 @@ impl Plot {
 
     /// Set the axis flags for the X axis in this plot
     #[inline]
-    pub fn with_x_axis_flags(mut self, flags: &AxisFlags) -> Self {
-        self.x_flags =* flags;
+    pub fn with_x_axis_flags(mut self, axis: Axis, flags: &AxisFlags) -> Self {
+        if let Some(axis_index) = get_x_axis_index(axis) {
+            self.x_flags[axis_index] = *flags;
+        }
         self
     }
 
     /// Set the axis flags for the selected Y axis in this plot
     #[inline]
-    pub fn with_y_axis_flags(mut self, y_axis_choice: YAxisChoice, flags: &AxisFlags) -> Self {
-        let axis_index = y_axis_choice as usize;
-        self.y_flags[axis_index] = *flags;
+    pub fn with_y_axis_flags(mut self, axis: Axis, flags: &AxisFlags) -> Self {
+        if let Some(axis_index) = get_y_axis_index(axis) {
+            self.y_flags[axis_index] = *flags;
+        }
         self
     }
 
@@ -537,17 +611,21 @@ impl Plot {
         // clunky and takes the two approaches separately instead of a unified "match".
 
         // --- Direct limit-setting ---
-        if let Some(AxisLimitSpecification::Single(limits, condition)) = &self.x_limits {
-            /* 
-            unsafe {
-                sys::ImPlot_SetNextPlotLimitsX(
-                    limits.Min,
-                    limits.Max,
-                    *condition as sys::ImGuiCond,
-                );
-            }
-            */
-        }
+        self.x_limits
+            .iter()
+            .enumerate()
+            .for_each(|(k, limit_spec)| {
+                if let Some(AxisLimitSpecification::Single(limits, condition)) = limit_spec {
+                    unsafe {
+                        sys::ImPlot_SetNextAxisLimits(
+                            get_x_axis_from_index(k).unwrap() as i32,
+                            limits.Min,
+                            limits.Max,
+                            *condition as sys::ImGuiCond,
+                        );
+                    }
+                }
+            });
 
         self.y_limits
             .iter()
@@ -555,29 +633,32 @@ impl Plot {
             .for_each(|(k, limit_spec)| {
                 if let Some(AxisLimitSpecification::Single(limits, condition)) = limit_spec {
                     unsafe {
-                        /* 
-                        sys::ImPlot_SetNextPlotLimitsY(
+                        sys::ImPlot_SetNextAxisLimits(
+                            get_y_axis_from_index(k).unwrap() as i32,
                             limits.Min,
                             limits.Max,
                             *condition as sys::ImGuiCond,
-                            k as i32,
                         );
-                        */
                     }
                 }
             });
 
         // --- Linked limit-setting ---
-        let (xmin_pointer, xmax_pointer) =
-            if let Some(AxisLimitSpecification::Linked(value)) = &self.x_limits {
-                let mut borrowed = value.borrow_mut();
-                (
-                    &mut (*borrowed).Min as *mut _,
-                    &mut (*borrowed).Max as *mut _,
-                )
-            } else {
-                (std::ptr::null_mut(), std::ptr::null_mut())
-            };
+        let x_limit_pointers: Vec<(*mut f64, *mut f64)> = self
+            .x_limits
+            .iter()
+            .map(|limit_spec| {
+                if let Some(AxisLimitSpecification::Linked(value)) = limit_spec {
+                    let mut borrowed = value.borrow_mut();
+                    (
+                        &mut (*borrowed).Min as *mut _,
+                        &mut (*borrowed).Max as *mut _,
+                    )
+                } else {
+                    (std::ptr::null_mut(), std::ptr::null_mut())
+                }
+            })
+            .collect();
 
         let y_limit_pointers: Vec<(*mut f64, *mut f64)> = self
             .y_limits
@@ -599,18 +680,12 @@ impl Plot {
             // Calling this unconditionally here as calling it with all NULL pointers should not
             // affect anything. In terms of unsafety, the pointers should be OK as long as any plot
             // struct that has an Rc to the same data is alive.
-            /* 
-            sys::ImPlot_LinkNextPlotLimits(
-                xmin_pointer,
-                xmax_pointer,
-                y_limit_pointers[0].0,
-                y_limit_pointers[0].1,
-                y_limit_pointers[1].0,
-                y_limit_pointers[1].1,
-                y_limit_pointers[2].0,
-                y_limit_pointers[2].1,
-            )
-            */
+            for (i, p) in x_limit_pointers.iter().enumerate() {
+                sys::ImPlot_SetNextAxisLinks(get_x_axis_from_index(i).unwrap() as i32, p.0, p.1 );
+            }
+            for (i, p) in y_limit_pointers.iter().enumerate() {
+                sys::ImPlot_SetNextAxisLinks(get_y_axis_from_index(i).unwrap() as i32, p.0, p.1 );
+            }
         }
     }
 
@@ -618,30 +693,38 @@ impl Plot {
     /// preparation work that is the same for both the X and Y axis plots, then calls the
     /// "set next plot ticks" wrapper functions for both X and Y.
     fn maybe_set_tick_labels(&self) {
-        // Show x ticks if they are available
-        if self.x_tick_positions.is_some() && !self.x_tick_positions.as_ref().unwrap().is_empty() {
-            let mut pointer_vec; // The vector of pointers we create has to have a longer lifetime
-            let labels_pointer = if let Some(labels_value) = &self.x_tick_labels {
-                pointer_vec = labels_value
-                    .iter()
-                    .map(|x| x.as_ptr() as *const c_char)
-                    .collect::<Vec<*const c_char>>();
-                pointer_vec.as_mut_ptr()
-            } else {
-                std::ptr::null_mut()
-            };
 
-            unsafe {
-                /* 
-                sys::ImPlot_SetNextPlotTicksXdoublePtr(
-                    self.x_tick_positions.as_ref().unwrap().as_ptr(),
-                    self.x_tick_positions.as_ref().unwrap().len() as i32,
-                    labels_pointer,
-                    self.show_x_default_ticks,
-                )
-                */
-            }
-        }
+        // Show x ticks if they are available
+        self.x_tick_positions
+            .iter()
+            .zip(self.x_tick_labels.iter())
+            .zip(self.show_x_default_ticks.iter())
+            .enumerate()
+            .for_each(|(k, ((positions, labels), show_defaults))| {
+                if positions.is_some() && !positions.as_ref().unwrap().is_empty() {
+                    // The vector of pointers we create has to have a longer lifetime
+                    let mut pointer_vec;
+                    let labels_pointer = if let Some(labels_value) = &labels {
+                        pointer_vec = labels_value
+                            .iter()
+                            .map(|x| x.as_ptr() as *const c_char)
+                            .collect::<Vec<*const c_char>>();
+                        pointer_vec.as_mut_ptr()
+                    } else {
+                        std::ptr::null_mut()
+                    };
+
+                    unsafe {
+                        sys::ImPlot_SetupAxisTicks_doublePtr(
+                            get_x_axis_from_index(k).unwrap() as i32,
+                            positions.as_ref().unwrap().as_ptr(),
+                            positions.as_ref().unwrap().len() as i32,
+                            labels_pointer,
+                            *show_defaults,
+                        )
+                    }
+                }
+            });
 
         self.y_tick_positions
             .iter()
@@ -663,15 +746,13 @@ impl Plot {
                     };
 
                     unsafe {
-                        /* 
-                        sys::ImPlot_SetNextPlotTicksYdoublePtr(
+                        sys::ImPlot_SetupAxisTicks_doublePtr(
+                            get_y_axis_from_index(k).unwrap() as i32,
                             positions.as_ref().unwrap().as_ptr(),
                             positions.as_ref().unwrap().len() as i32,
                             labels_pointer,
                             *show_defaults,
-                            k as i32,
                         )
-                        */
                     }
                 }
             });
@@ -695,10 +776,10 @@ impl Plot {
 
         if should_render {
             unsafe {
-                sys::ImPlot_SetupAxis(crate::Axis::X1 as i32, self.x_label.as_ptr(), self.x_flags.bits() as i32);
+                sys::ImPlot_SetupAxis(crate::Axis::X1 as i32, self.x_label.as_ptr(), self.x_flags[0].bits() as i32);
                 sys::ImPlot_SetupAxis(crate::Axis::Y1 as i32, self.y_label.as_ptr(), self.y_flags[0].bits() as i32);
-                sys::ImPlot_SetupAxis(crate::Axis::Y2 as i32, self.y_label.as_ptr(), self.y_flags[1].bits() as i32);
-                sys::ImPlot_SetupAxis(crate::Axis::Y3 as i32, self.y_label.as_ptr(), self.y_flags[2].bits() as i32);
+                // sys::ImPlot_SetupAxis(crate::Axis::Y2 as i32, self.y_label.as_ptr(), self.y_flags[1].bits() as i32);
+                // sys::ImPlot_SetupAxis(crate::Axis::Y3 as i32, self.y_label.as_ptr(), self.y_flags[2].bits() as i32);
             }
             // Configure legend location, if one was set. This has to be called between begin() and
             // end(), but since only the last call to it actually affects the outcome, I'm adding
