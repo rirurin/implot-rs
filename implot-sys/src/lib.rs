@@ -45,6 +45,18 @@ impl From<ImVec2> for ImPlotRange {
     }
 }
 
+impl Default for ImPlotRange {
+    fn default() -> Self {
+        Self { Min: 0., Max: 0. }
+    }
+}
+
+impl Default for ImPlotRect {
+    fn default() -> Self {
+        Self { X: ImPlotRange::default(), Y: ImPlotRange::default() }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
